@@ -16,7 +16,7 @@ Painel para gerenciar **várias contas e organizações do Supabase em um lugar 
 | Organizações Supabase   | Grátis: até 2 · Pro e Business: ilimitadas | Ilimitadas                                    |
 | IA (ajuda e descrições) | Incluída                                 | Opcional, com a sua `ANTHROPIC_API_KEY`         |
 | MCP na nuvem            | Plano Business                           | Você hospeda o servidor MCP (repo `basehub-mcp`) |
-| Custo                   | Grátis, Pro (R$ 29/mês) ou Business (R$ 39,90/mês) | Grátis (você paga a sua infra)        |
+| Custo                   | Grátis, Pro (R$ 29/mês) ou Business (R$ 39/mês) | Grátis (você paga a sua infra)        |
 | Suporte                 | Por e-mail                               | Comunidade (issues e discussions)               |
 | Código                  | O mesmo deste repositório                | O mesmo                                         |
 
