@@ -9,6 +9,8 @@ const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
 export const metadata: Metadata = {
+  // URL absoluta das imagens de compartilhamento (og:image)
+  metadataBase: new URL(process.env.APP_URL ?? "http://localhost:3000"),
   title: { default: "BaseHub", template: "%s · BaseHub" },
   description: "Gestão central de todas as contas e bancos Supabase.",
 };

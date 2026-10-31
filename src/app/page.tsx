@@ -33,7 +33,9 @@ export const metadata: Metadata = {
     description: "Várias contas Supabase, um painel só. Keep-alive, limite do plano grátis, SQL e tabelas. Open source.",
     type: "website",
     locale: "pt_BR",
+    siteName: "BaseHub",
   },
+  twitter: { card: "summary_large_image" },
 };
 
 const FEATURES = [
