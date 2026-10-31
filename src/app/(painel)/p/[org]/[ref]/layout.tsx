@@ -1,5 +1,7 @@
 import { requireSession } from "@/lib/session";
 import Link from "next/link";
+import { Suspense } from "react";
+import { ProjectDescriptionSection } from "@/components/project-description-section";
 import { pauseProjectAction, restoreProjectAction } from "@/app/actions";
 import { AutoRefresh } from "@/components/auto-refresh";
 import { ConfirmAction } from "@/components/confirm-action";
@@ -122,6 +124,9 @@ export default async function ProjectLayout({ children, params }: LayoutProps<"/
           </Notice>
         </div>
       )}
+      <Suspense fallback={<div className="mb-4 h-20 animate-pulse rounded-xl bg-zinc-100 dark:bg-zinc-900" aria-hidden />}>
+        <ProjectDescriptionSection tenant={session.tenantId} conn={conn} org={org} projectRef={ref} online={active} />
+      </Suspense>
       <ProjectTabs base={base} />
       {children}
     </>
