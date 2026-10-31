@@ -4,7 +4,7 @@ import { Logo } from "@/components/logo";
 import { getSession } from "@/lib/session";
 
 const POINTS = [
-  { title: "Todas as contas num lugar", body: "Conecte quantas contas Supabase quiser via OAuth e veja todos os projetos juntos." },
+  { title: "Todas as contas num lugar", body: "Conecte suas contas Supabase por OAuth ou Access Token e veja todos os projetos juntos." },
   { title: "Banco caiu? Um clique", body: "Projetos pausados aparecem em destaque e voltam ao ar com um clique." },
   { title: "Limite grátis sob controle", body: "Veja quantos bancos grátis cada e-mail ainda pode ligar e crie onde houver espaço." },
   { title: "Tabelas, SQL e conexões", body: "Explore dados, rode SQL e copie connection strings sem trocar de conta." },

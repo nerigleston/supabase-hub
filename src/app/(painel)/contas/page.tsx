@@ -61,7 +61,7 @@ export default async function ContasPage({ searchParams }: PageProps<"/contas">)
     <>
       <PageHeader
         title="Contas"
-        description="Conecte contas Supabase de quantos e-mails quiser. Cada login pode ter várias organizações, e cada organização aparece aqui agrupada pelo login de origem."
+        description="Conecte contas Supabase de vários e-mails. Cada login pode ter várias organizações, e cada organização aparece aqui agrupada pelo login de origem."
         actions={connect}
       />
 

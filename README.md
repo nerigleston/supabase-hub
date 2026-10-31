@@ -13,7 +13,8 @@ Painel para gerenciar **várias contas e organizações do Supabase em um lugar 
 | Instalação              | Nenhuma: cria a conta e usa              | Você sobe na sua infraestrutura                 |
 | Infra, backup, updates  | Por nossa conta                          | Por sua conta                                   |
 | Keep-alive (cron)       | Incluído                                 | Você configura                                  |
-| Custo                   | Plano grátis + planos pagos              | Grátis (você paga a sua infra)                  |
+| Organizações Supabase   | Grátis: até 2 · Pro: ilimitadas          | Ilimitadas                                      |
+| Custo                   | Grátis ou Pro (R$ 29/mês, em breve)      | Grátis (você paga a sua infra)                  |
 | Suporte                 | Por e-mail                               | Comunidade (issues e discussions)               |
 | Código                  | O mesmo deste repositório                | O mesmo                                         |
 
@@ -26,6 +27,7 @@ Painel para gerenciar **várias contas e organizações do Supabase em um lugar 
 ## Funcionalidades
 
 - **Várias contas Supabase**: conecte organizações por OAuth ou pelo Access Token da conta inteira (as organizações novas aparecem sozinhas).
+- **Planos opcionais**: quem oferece como SaaS pode limitar as organizações do plano Grátis e cobrar o Pro por assinatura via AbacatePay (Pix ou cartão). Self-host sem configurar nada não tem limite.
 - **Visão geral de projetos**: estado de cada banco (ativo, pausado, restaurando…), plano, região.
 - **Limite do plano Free**: mostra quantos bancos grátis cada e-mail ainda pode ligar (2 por login) e escolhe automaticamente onde criar o próximo.
 - **Criar, pausar e reativar** projetos.

@@ -40,7 +40,7 @@ const FEATURES = [
   {
     icon: Layers,
     title: "Todas as contas num lugar",
-    body: "Conecte quantos logins e organizações Supabase quiser, por OAuth ou Access Token. Organizações novas aparecem sozinhas.",
+    body: "Conecte vários logins e organizações Supabase, por OAuth ou Access Token. Organizações novas aparecem sozinhas.",
   },
   {
     icon: HeartPulse,
@@ -181,6 +181,17 @@ export default async function LandingPage() {
   const upgrade = env.upgradeUrl;
   const payments = abacate.configured;
   const brl = (n: number) => n.toLocaleString("pt-BR");
+  const { currency, monthly, yearly } = PRICING.pro;
+  const faq =
+    orgLimit === null
+      ? FAQ
+      : [
+          {
+            q: "Quanto custa?",
+            a: `O plano Grátis conecta até ${orgLimit} organizações Supabase, com todos os recursos. O Pro libera organizações ilimitadas por ${currency} ${brl(monthly)}/mês ou ${currency} ${brl(yearly)}/ano${payments ? "" : " e chega em breve; quem estiver no Grátis migra quando quiser"}.`,
+          },
+          ...FAQ,
+        ];
   const steps = signupOpen
     ? STEPS
     : [{ title: "Peça seu acesso", body: "Estamos liberando contas aos poucos. Deixe seu contato e avisamos quando abrir." }, ...STEPS.slice(1)];
@@ -372,7 +383,7 @@ export default async function LandingPage() {
                 </div>
                 <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">Sem servidor para manter. A gente cuida do resto.</p>
                 <ul className="mt-5 flex flex-col gap-2 text-sm">
-                  {["Nada para instalar", "Keep-alive diário já funcionando", "Atualizações automáticas", "Infra, backup e segurança por nossa conta"].map((t) => (
+                  {["Nada para instalar", "Grátis até 2 organizações; Pro ilimitado", "Keep-alive diário já funcionando", "Infra, backup e atualizações por nossa conta"].map((t) => (
                     <li key={t} className="flex items-center gap-2">
                       <Check className="size-4 text-emerald-600" /> {t}
                     </li>
@@ -389,7 +400,7 @@ export default async function LandingPage() {
                 </div>
                 <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">Clone o repositório e suba na sua infraestrutura.</p>
                 <ul className="mt-5 flex flex-col gap-2 text-sm">
-                  {["Código aberto (AGPL-3.0)", "Seus dados na sua conta AWS", "Next.js + Cognito + DynamoDB", "Você cuida de deploy, cron e updates"].map((t) => (
+                  {["Código aberto (AGPL-3.0)", "Organizações ilimitadas", "Seus dados na sua conta AWS", "Você cuida de deploy, cron e updates"].map((t) => (
                     <li key={t} className="flex items-center gap-2">
                       <Check className="size-4 text-zinc-400" /> {t}
                     </li>
@@ -408,7 +419,7 @@ export default async function LandingPage() {
           <div className="mx-auto max-w-3xl px-4 md:px-6">
             <h2 className="text-3xl font-semibold tracking-tight">Dúvidas frequentes</h2>
             <div className="mt-8 divide-y divide-zinc-200 border-y border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800">
-              {FAQ.map((f) => (
+              {faq.map((f) => (
                 <details key={f.q} className="group py-4">
                   <summary className="flex cursor-pointer list-none items-center justify-between gap-4 font-medium">
                     {f.q}
