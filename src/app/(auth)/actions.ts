@@ -20,7 +20,7 @@ const q = (email: string) => `email=${encodeURIComponent(email.trim().toLowerCas
 
 /** Só aceita caminhos internos para o redirect pós-login. */
 function safeNext(next: string) {
-  return next.startsWith("/") && !next.startsWith("//") ? next : "/";
+  return next.startsWith("/") && !next.startsWith("//") ? next : "/painel";
 }
 
 export async function loginAction(_prev: FormState, form: FormData): Promise<FormState> {
@@ -122,5 +122,5 @@ export async function newPasswordAction(_prev: FormState, form: FormData): Promi
   }
   await clearChallenge();
   await createSession(identity);
-  redirect("/");
+  redirect("/painel");
 }

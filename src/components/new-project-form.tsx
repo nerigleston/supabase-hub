@@ -32,7 +32,7 @@ export function NewProjectForm({ accounts }: { accounts: AccountOption[] }) {
           <CopyField label="Ref do projeto" value={d.ref} />
           <div className="flex gap-2">
             <Link href={`/p/${d.orgSlug}/${d.ref}`} className={buttonClass("primary")}>Abrir projeto</Link>
-            <Link href="/" className={buttonClass("secondary")}>Voltar à visão geral</Link>
+            <Link href="/painel" className={buttonClass("secondary")}>Voltar à visão geral</Link>
           </div>
         </Card>
       </div>
@@ -106,7 +106,7 @@ export function NewProjectForm({ accounts }: { accounts: AccountOption[] }) {
           {pending && <Spinner />}
           {pending ? "Criando projeto…" : "Criar projeto"}
         </button>
-        <Link href="/" className={buttonClass("secondary", "py-2")}>Cancelar</Link>
+        <Link href="/painel" className={buttonClass("secondary", "py-2")}>Cancelar</Link>
       </div>
     </form>
   );

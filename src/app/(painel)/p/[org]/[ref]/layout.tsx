@@ -19,7 +19,7 @@ export default async function ProjectLayout({ children, params }: LayoutProps<"/
 
   const breadcrumb = (
     <nav aria-label="Você está em" className="mb-2 text-xs text-zinc-500">
-      <Link href="/" className="hover:underline">Visão geral</Link> <span aria-hidden>/</span>{" "}
+      <Link href="/painel" className="hover:underline">Visão geral</Link> <span aria-hidden>/</span>{" "}
       <span>{"conn" in result && result.conn ? result.conn.label || result.conn.orgName : org}</span> <span aria-hidden>/</span>{" "}
       <span className="font-mono">{ref}</span>
     </nav>
@@ -32,7 +32,7 @@ export default async function ProjectLayout({ children, params }: LayoutProps<"/
         <Notice
           tone="error"
           title="Não foi possível abrir este projeto"
-          action={<Link href="/" className={buttonClass("secondary")}>Voltar</Link>}
+          action={<Link href="/painel" className={buttonClass("secondary")}>Voltar</Link>}
         >
           {result.error}
         </Notice>

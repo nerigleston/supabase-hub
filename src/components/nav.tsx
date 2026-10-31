@@ -8,7 +8,7 @@ import { Logo } from "./logo";
 import { ThemeToggle } from "./theme-toggle";
 
 const LINKS = [
-  { href: "/", label: "Visão geral", icon: "▦" },
+  { href: "/painel", label: "Visão geral", icon: "▦" },
   { href: "/novo", label: "Novo banco", icon: "+" },
   { href: "/contas", label: "Contas", icon: "◎" },
   { href: "/atividade", label: "Atividade", icon: "≡" },
@@ -16,7 +16,7 @@ const LINKS = [
 ];
 
 function NavLinks({ pathname, onNavigate }: { pathname: string; onNavigate?: () => void }) {
-  const isActive = (href: string) => (href === "/" ? pathname === "/" || pathname.startsWith("/p/") : pathname.startsWith(href));
+  const isActive = (href: string) => (href === "/painel" ? pathname === "/painel" || pathname.startsWith("/p/") : pathname.startsWith(href));
   return (
     <nav aria-label="Principal" className="flex flex-col gap-1">
       {LINKS.map((l) => (
@@ -73,7 +73,7 @@ export function Nav({ email }: { email: string }) {
     <>
       {/* Desktop: barra lateral fixa */}
       <aside className="hidden shrink-0 flex-col border-zinc-200 bg-white md:sticky md:top-0 md:flex md:h-screen md:w-56 md:border-r dark:border-zinc-800 dark:bg-zinc-900">
-        <Link href="/" aria-label="BaseHub, visão geral" className="px-4 py-4">
+        <Link href="/painel" aria-label="BaseHub, visão geral" className="px-4 py-4">
           <Logo />
         </Link>
         <div className="px-2">
@@ -86,7 +86,7 @@ export function Nav({ email }: { email: string }) {
 
       {/* Mobile: barra superior + botão da gaveta */}
       <header className="sticky top-0 z-30 flex items-center justify-between border-b border-zinc-200 bg-white/90 px-4 py-3 backdrop-blur md:hidden dark:border-zinc-800 dark:bg-zinc-900/90">
-        <Link href="/" aria-label="BaseHub, visão geral">
+        <Link href="/painel" aria-label="BaseHub, visão geral">
           <Logo />
         </Link>
         <button

@@ -2,7 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 
 // Rotas públicas (sem sessão). O resto exige o cookie de sessão — a validação
 // real fica em requireSession() (lib/session.ts); aqui é só a checagem otimista.
-const PUBLIC = /^\/(login|cadastro|confirmar|esqueci-senha|redefinir-senha|nova-senha)(\/|$)/;
+const PUBLIC = /^\/$|^\/(login|cadastro|confirmar|esqueci-senha|redefinir-senha|nova-senha)(\/|$)/;
 
 export function proxy(request: NextRequest) {
   const path = request.nextUrl.pathname;

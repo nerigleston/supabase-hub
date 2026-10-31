@@ -11,7 +11,7 @@ const POINTS = [
 ];
 
 export default async function AuthLayout({ children }: LayoutProps<"/">) {
-  if (await getSession()) redirect("/");
+  if (await getSession()) redirect("/painel");
 
   return (
     <div className="grid min-h-screen lg:grid-cols-2">
@@ -19,7 +19,7 @@ export default async function AuthLayout({ children }: LayoutProps<"/">) {
         <div aria-hidden className="pointer-events-none absolute -top-40 -left-40 size-[520px] rounded-full bg-emerald-600/25 blur-3xl" />
         <div aria-hidden className="pointer-events-none absolute -right-32 -bottom-40 size-[420px] rounded-full bg-emerald-500/10 blur-3xl" />
         <div className="relative mx-auto flex h-full max-w-xl flex-col justify-between px-10 py-10 xl:px-14">
-        <Link href="/login" aria-label="BaseHub" className="relative">
+        <Link href="/" aria-label="BaseHub" className="relative">
           <Logo onDark />
         </Link>
         <div className="relative max-w-md">
@@ -41,7 +41,7 @@ export default async function AuthLayout({ children }: LayoutProps<"/">) {
       </aside>
       <main className="flex items-center justify-center bg-white px-4 py-10 dark:bg-zinc-900">
         <div className="w-full max-w-sm">
-          <Link href="/login" aria-label="BaseHub" className="mb-8 block lg:hidden">
+          <Link href="/" aria-label="BaseHub" className="mb-8 block lg:hidden">
             <Logo />
           </Link>
           {children}
