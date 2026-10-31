@@ -204,4 +204,12 @@ Permissões IAM mínimas na tabela: `GetItem`, `PutItem`, `UpdateItem`, `DeleteI
 
 [AGPL-3.0](LICENSE). Você pode usar, modificar e hospedar à vontade, inclusive em empresa. Se oferecer uma versão modificada **como serviço para terceiros**, precisa publicar o código dessa versão nos mesmos termos.
 
-Precisa de outra licença (por exemplo, para embutir num produto fechado)? Fale com a gente pelo [basehub.nerifilho.com.br](https://basehub.nerifilho.com.br).
+Precisa de outra licença (por exemplo, para embutir num produto fechado)? Fale comigo pelos contatos abaixo.
+
+## Autor
+
+Feito por **Neri Filho**.
+
+- E-mail: [neri@lizardti.com](mailto:neri@lizardti.com)
+- LinkedIn: [linkedin.com/in/nerigleston](https://www.linkedin.com/in/nerigleston/)
+- Versão hospedada: [basehub.nerifilho.com.br](https://basehub.nerifilho.com.br)
