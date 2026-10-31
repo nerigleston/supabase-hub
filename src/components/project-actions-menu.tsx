@@ -1,9 +1,9 @@
 "use client";
 
-import { Copy, Database, ExternalLink, MoreHorizontal, Pause, Play, RefreshCw, SquareTerminal, Table2 } from "lucide-react";
+import { Copy, Database, ExternalLink, MoreHorizontal, Pause, Play, RefreshCw, SquareTerminal, Table2, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
-import { pauseProjectAction, restoreProjectAction } from "@/app/actions";
+import { deleteProjectAction, pauseProjectAction, restoreProjectAction } from "@/app/actions";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,7 +20,7 @@ import { toast } from "./toast";
 
 /** Menu ⋯ da linha do projeto: todas as ações num lugar conhecido (heurística 4). */
 export function ProjectActionsMenu({ project: p }: { project: ProjectRow }) {
-  const [dialog, setDialog] = useState<"restore" | "pause" | null>(null);
+  const [dialog, setDialog] = useState<"restore" | "pause" | "delete" | null>(null);
   const { ping, pending: pinging, waitMin, cooling } = usePingNow(p.accountSlug, p.ref, p.name, p.keepAlive?.lastManualPingAt);
   const base = `/p/${p.accountSlug}/${p.ref}`;
   const online = p.status === "ACTIVE_HEALTHY" || p.status === "ACTIVE_UNHEALTHY";
@@ -45,6 +45,19 @@ export function ProjectActionsMenu({ project: p }: { project: ProjectRow }) {
       </>
     ),
     confirmLabel: "Pausar projeto",
+    danger: true,
+    typeToConfirm: p.name,
+  };
+
+  const del: ConfirmSpec = {
+    title: `Excluir o banco "${p.name}"?`,
+    body: (
+      <>
+        Isso <strong>apaga o projeto e todos os dados no Supabase</strong>. Não há como desfazer, nem pelo painel nem pelo Supabase. Prefira
+        pausar se só quer liberar uma vaga.
+      </>
+    ),
+    confirmLabel: "Excluir para sempre",
     danger: true,
     typeToConfirm: p.name,
   };
@@ -94,6 +107,9 @@ export function ProjectActionsMenu({ project: p }: { project: ProjectRow }) {
               <Pause /> Pausar
             </DropdownMenuItem>
           )}
+          <DropdownMenuItem variant="destructive" onSelect={() => setDialog("delete")}>
+            <Trash2 /> Excluir banco
+          </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem onSelect={copyRef}>
             <Copy /> Copiar ref
@@ -119,6 +135,13 @@ export function ProjectActionsMenu({ project: p }: { project: ProjectRow }) {
         confirm={pause}
         action={() => pauseProjectAction(p.accountSlug, p.ref, p.name)}
         pendingLabel="Pausando…"
+      />
+      <ConfirmDialog
+        open={dialog === "delete"}
+        onOpenChange={(o) => !o && setDialog(null)}
+        confirm={del}
+        action={() => deleteProjectAction(p.accountSlug, p.ref, p.name)}
+        pendingLabel="Excluindo…"
       />
     </>
   );

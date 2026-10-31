@@ -66,12 +66,6 @@ export default async function OverviewPage() {
             </Notice>
           ))}
 
-          {paused > 0 && (
-            <Notice tone="warn" title={`${paused} projeto(s) pausado(s)`}>
-              Use o filtro <strong>Pausados</strong> e clique em <strong>Reativar</strong> no projeto que precisa voltar.
-            </Notice>
-          )}
-
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             <Stat label="Logins Supabase" value={logins} hint={`${accounts.length} organização(ões), ${accounts.length - problems.length} respondendo`} />
             <Stat label="Projetos" value={projects.length} hint={`${kept} mantido(s) ativo(s) por keep-alive`} />

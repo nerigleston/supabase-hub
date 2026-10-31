@@ -1,10 +1,10 @@
 "use client";
 
+import { type LucideIcon, Monitor, Moon, Sun } from "lucide-react";
 import { useEffect, useState } from "react";
-
-export type Theme = "light" | "dark" | "system";
 import { THEME_KEY as KEY } from "@/lib/theme";
 
+export type Theme = "light" | "dark" | "system";
 
 function apply(theme: Theme) {
   const dark = theme === "dark" || (theme === "system" && matchMedia("(prefers-color-scheme: dark)").matches);
@@ -20,10 +20,10 @@ function readTheme(): Theme {
   }
 }
 
-const OPTIONS: { value: Theme; label: string; icon: string }[] = [
-  { value: "light", label: "Claro", icon: "☀" },
-  { value: "dark", label: "Escuro", icon: "☾" },
-  { value: "system", label: "Sistema", icon: "◐" },
+const OPTIONS: { value: Theme; label: string; title: string; icon: LucideIcon }[] = [
+  { value: "light", label: "Claro", title: "Tema claro", icon: Sun },
+  { value: "dark", label: "Escuro", title: "Tema escuro", icon: Moon },
+  { value: "system", label: "Sistema", title: "Seguir o sistema", icon: Monitor },
 ];
 
 export function ThemeToggle({ compact = false }: { compact?: boolean }) {
@@ -53,25 +53,34 @@ export function ThemeToggle({ compact = false }: { compact?: boolean }) {
   };
 
   return (
-    <div role="radiogroup" aria-label="Tema" className="inline-flex rounded-md border border-zinc-200 p-0.5 dark:border-zinc-700">
-      {OPTIONS.map((o) => (
-        <button
-          key={o.value}
-          type="button"
-          role="radio"
-          aria-checked={theme === o.value}
-          onClick={() => choose(o.value)}
-          title={o.label}
-          className={`flex items-center gap-1 rounded px-2 py-1 text-xs ${
-            theme === o.value
-              ? "bg-zinc-900 text-white dark:bg-white dark:text-zinc-900"
-              : "text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800"
-          }`}
-        >
-          <span aria-hidden>{o.icon}</span>
-          {!compact && o.label}
-        </button>
-      ))}
+    <div
+      role="radiogroup"
+      aria-label="Tema"
+      className={`${compact ? "grid w-full grid-cols-3" : "inline-flex"} rounded-lg bg-zinc-100 p-0.5 dark:bg-zinc-800/80`}
+    >
+      {OPTIONS.map((o) => {
+        const on = theme === o.value;
+        const Icon = o.icon;
+        return (
+          <button
+            key={o.value}
+            type="button"
+            role="radio"
+            aria-checked={on}
+            aria-label={o.title}
+            onClick={() => choose(o.value)}
+            title={o.title}
+            className={`flex h-7 items-center justify-center gap-1.5 rounded-md px-2 text-xs font-medium transition-colors ${
+              on
+                ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-600 dark:text-white"
+                : "text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-100"
+            }`}
+          >
+            <Icon aria-hidden className="size-3.5" strokeWidth={2} />
+            {!compact && o.label}
+          </button>
+        );
+      })}
     </div>
   );
 }

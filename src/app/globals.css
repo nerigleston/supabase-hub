@@ -102,6 +102,26 @@ dialog::backdrop {
   background: rgb(0 0 0 / 0.45);
 }
 
+/* minichat de ajuda: abre crescendo a partir do botão do canto */
+@keyframes assistant-in {
+  from { opacity: 0; transform: translateY(12px) scale(0.92); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes assistant-out {
+  from { opacity: 1; transform: translateY(0) scale(1); }
+  to { opacity: 0; transform: translateY(12px) scale(0.92); }
+}
+@keyframes assistant-pop {
+  0% { transform: scale(1); }
+  40% { transform: scale(0.86); }
+  100% { transform: scale(1); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .assistant-panel { transform-origin: bottom right; animation: assistant-in 200ms cubic-bezier(0.2, 0.9, 0.3, 1.2) both; }
+  .assistant-panel[data-closing] { animation: assistant-out 150ms ease-in both; }
+  .assistant-fab[data-pop] { animation: assistant-pop 260ms ease-out; }
+}
+
 .dark {
   --background: oklch(0.141 0.005 285.823); /* zinc-950 */
   --foreground: oklch(0.967 0.001 286.375); /* zinc-100 */
@@ -147,7 +167,8 @@ dialog::backdrop {
     cursor: pointer;
   }
   html {
-    @apply font-sans;
+    /* fundo também no html: em pop-ups (OAuth) e no overscroll não sobra faixa de outra cor */
+    @apply bg-background font-sans;
   }
 }
 /* Realce de sintaxe do editor SQL (Prism) — cores para fundo escuro */

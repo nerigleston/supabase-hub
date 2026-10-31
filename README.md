@@ -1,6 +1,6 @@
-# Supabase Hub
+# BaseHub
 
-Painel para gerenciar **várias contas e organizações do Supabase em um lugar só**: lista todos os projetos, mostra o limite de bancos grátis por e-mail, cria e reativa projetos, roda SQL, navega nas tabelas e mantém projetos do plano Free ativos (keep-alive diário).
+Painel para gerenciar **várias contas e organizações do Supabase em um lugar só**: lista todos os projetos, mostra o limite de bancos grátis por e-mail, cria e reativa projetos, roda SQL, navega nas tabelas, mantém projetos do plano Free ativos (keep-alive diário) e deixa um assistente de IA controlar os bancos por MCP, só com o que você liberar.
 
 > Projeto independente, **não afiliado nem endossado pela Supabase Inc.** "Supabase" é marca da Supabase Inc.
 
@@ -13,8 +13,10 @@ Painel para gerenciar **várias contas e organizações do Supabase em um lugar 
 | Instalação              | Nenhuma: cria a conta e usa              | Você sobe na sua infraestrutura                 |
 | Infra, backup, updates  | Por nossa conta                          | Por sua conta                                   |
 | Keep-alive (cron)       | Incluído                                 | Você configura                                  |
-| Organizações Supabase   | Grátis: até 2 · Pro: ilimitadas          | Ilimitadas                                      |
-| Custo                   | Grátis ou Pro (R$ 29/mês, em breve)      | Grátis (você paga a sua infra)                  |
+| Organizações Supabase   | Grátis: até 2 · Pro e Business: ilimitadas | Ilimitadas                                    |
+| IA (ajuda e descrições) | Incluída                                 | Opcional, com a sua `ANTHROPIC_API_KEY`         |
+| MCP na nuvem            | Plano Business                           | Você hospeda o servidor MCP (repo `basehub-mcp`) |
+| Custo                   | Grátis, Pro (R$ 29/mês) ou Business (R$ 39,90/mês) | Grátis (você paga a sua infra)        |
 | Suporte                 | Por e-mail                               | Comunidade (issues e discussions)               |
 | Código                  | O mesmo deste repositório                | O mesmo                                         |
 
@@ -26,13 +28,17 @@ Painel para gerenciar **várias contas e organizações do Supabase em um lugar 
 
 ## Funcionalidades
 
-- **Várias contas Supabase**: conecte organizações por OAuth ou pelo Access Token da conta inteira (as organizações novas aparecem sozinhas).
-- **Planos opcionais**: quem oferece como SaaS pode limitar as organizações do plano Grátis e cobrar o Pro por assinatura via AbacatePay (Pix ou cartão). Self-host sem configurar nada não tem limite.
+- **Várias contas Supabase**: conecte organizações por OAuth ou pelo Access Token da conta inteira (as organizações novas aparecem sozinhas). Cada organização tem uma página própria com os bancos dela e as vagas do e-mail.
+- **Planos opcionais**: quem oferece como SaaS pode limitar as organizações do plano Grátis e cobrar Pro e Business por assinatura via AbacatePay (Pix ou cartão). Self-host sem configurar nada não tem limite.
 - **Visão geral de projetos**: estado de cada banco (ativo, pausado, restaurando…), plano, região.
-- **Limite do plano Free**: mostra quantos bancos grátis cada e-mail ainda pode ligar (2 por login) e escolhe automaticamente onde criar o próximo.
-- **Criar, pausar e reativar** projetos.
+- **Limite do plano Free**: o Supabase permite 2 bancos grátis ligados **por e-mail** (somando todas as organizações dele). O painel mostra as vagas de cada e-mail e escolhe automaticamente onde criar o próximo.
+- **Criar, pausar, reativar e excluir** projetos.
 - **Editor SQL** e **navegador de tabelas**.
+- **Conectar**: connection strings (pooler transaction/session e direta) e snippets prontos por aba: `.env`, psql, Node (pg), Prisma, Drizzle, Python, Go, JDBC, .NET, PHP e supabase-js.
 - **Manter ativo (keep-alive)**: um `select 1` por dia nos projetos marcados, para o Supabase não pausar por inatividade.
+- **Descrição de cada banco**: escrita à mão ou gerada por IA a partir do esquema (opcionalmente com 2 linhas de exemplo por tabela, colunas sensíveis ocultas). O usuário revisa antes de salvar, e o painel avisa quando tabelas ou colunas mudam. O MCP usa a descrição para saber qual banco é qual.
+- **Minichat de ajuda** (IA): explica o sistema passo a passo, com guardrails de entrada e saída (segredos mascarados) e limites de uso.
+- **MCP na nuvem** (plano Business): conecta o BaseHub ao Claude, ChatGPT, Cursor, Claude Code e Codex. O login é pelo próprio BaseHub (OAuth 2.1). Você liga cada ação no padrão ou por banco (padrão, personalizado ou bloqueado), e SQL de escrita é uma permissão à parte.
 - **Atividade**: log de auditoria de quem fez o quê (expira sozinho).
 - **Segurança**: tokens do Supabase criptografados (AES-256-GCM), CSP com nonce por requisição, rate limit por usuário, sessão em cookie `httpOnly`.
 
@@ -43,8 +49,10 @@ Painel para gerenciar **várias contas e organizações do Supabase em um lugar 
 | App            | Next.js 16 (App Router), React 19, Tailwind CSS 4, shadcn/ui       |
 | Login          | AWS Cognito (User Pool)                                            |
 | Dados          | AWS DynamoDB (tabela única, multi-tenant)                          |
-| Hospedagem     | Vercel (funções Node.js + Cron) — ou qualquer host Node.js         |
+| Hospedagem     | Vercel (funções Node.js + Cron) ou qualquer host Node.js           |
 | Integração     | Supabase Management API (OAuth App ou Personal Access Token)       |
+| IA (opcional)  | API da Anthropic (Claude Haiku por padrão), com prompt caching     |
+| MCP            | Servidor em Python com [jangada-ai](https://docs.jangada.dev.br), hospedado na jangada Cloud |
 
 ---
 
@@ -95,6 +103,13 @@ Coloque o nome em `DYNAMO_TABLE`.
 | `T#<tenant>`  | `KA#<ref>`               | Configuração de keep-alive do projeto         |
 | `T#<tenant>`  | `LOG#<iso>#<uuid>`       | Auditoria (expira via `ttl`)                  |
 | `T#<tenant>`  | `RL#<ação>`              | Rate limit (expira via `ttl`)                 |
+| `T#GLOBAL`    | `RL#<ação>-day`          | Teto diário geral de uso da IA                |
+| `T#<tenant>`  | `PLAN`                   | Plano e assinatura                            |
+| `T#<tenant>`  | `DESC#<ref>`             | Descrição do banco + impressão digital do esquema |
+| `T#<tenant>`  | `DESCGEN#<ref>`          | Rascunhos de IA por versão do esquema (limite de custo) |
+| `T#<tenant>`  | `MCPCFG`                 | Ações do MCP (padrão e por banco)             |
+| `T#<tenant>`  | `MCPREFIDX`              | Cache ref -> organização (expira)             |
+| `OAUTHCLIENT#<id>` / `OAUTHCODE#…` / `OAUTHTOK#<hash>` / `OAUTHREF#<hash>` | `META` | Servidor OAuth do MCP (tokens guardados só como hash) |
 
 Hoje `tenant` = `sub` do usuário no Cognito. Tokens e senhas são gravados criptografados.
 
@@ -159,15 +174,33 @@ npm run build && npm start
 | `CRON_SECRET`                  | ✅ (prod)   | Token exigido em `Authorization: Bearer` pela rota de keep-alive          |
 | `SIGNUP_ENABLED`               |             | `true` abre o cadastro público. **Fechado por padrão**: abra para criar a sua conta e feche depois, se quiser |
 | `ACCESS_REQUEST_URL`           |             | Com o cadastro fechado, destino do botão "Quero ser avisado" (`mailto:` ou URL) |
+| `MCP_URL`                      |             | URL pública do servidor MCP mostrada na tela /mcp e na LP                  |
+
+#### IA (opcional): minichat de ajuda e descrição dos bancos
+
+Sem `ANTHROPIC_API_KEY` a IA fica desligada: o botão do chat e o "Gerar com IA" nem aparecem (a descrição manual continua). Na versão hospedada a chave é a do BaseHub; no self-host, cada instalação usa a própria chave, criada em [console.anthropic.com](https://console.anthropic.com).
+
+| Variável                       | Descrição                                                                 |
+| ------------------------------ | ------------------------------------------------------------------------- |
+| `ANTHROPIC_API_KEY`            | Liga a IA. Fica só no servidor; o navegador fala com rotas do próprio app |
+| `AI_MODEL`                     | Modelo (padrão `claude-haiku-5-5`, o mais barato)                          |
+| `AI_DAILY_CHAT_LIMIT`          | Teto diário de mensagens do chat somando todos os usuários (padrão 2000)  |
+| `AI_DAILY_DESCRIBE_LIMIT`      | Teto diário de descrições geradas somando todos (padrão 300)              |
+
+Controle de custo já embutido: o guia do chat vai em cache (prompt caching), 30 mensagens a cada 10 min e 100 por dia por usuário; descrição só é gerada quando o banco não tem uma ou quando tabelas/colunas mudaram, até 3 rascunhos por versão do esquema, 5 por hora e 15 por dia por usuário. Em bancos grandes só as ~40 tabelas mais relevantes vão com colunas e o pedido tem teto fixo.
+
+#### MCP (opcional)
+
+O servidor MCP fica em outro repositório (`basehub-mcp`, Python + jangada-ai). Ele só repassa as chamadas para o BaseHub, que é o servidor OAuth (`/.well-known/oauth-authorization-server`, `/oauth/register`, `/oauth/authorize`, `/oauth/token`) e quem executa as ações (`/api/mcp/tools`, `/api/mcp/call`). No servidor MCP, defina `BASEHUB_URL` e `MCP_PUBLIC_URL`; no BaseHub, `MCP_URL`. O acesso exige o plano Business quando os planos estão ligados.
 
 #### Planos e pagamento (opcional, para quem oferece como SaaS)
 
-Sem `FREE_ORG_LIMIT` não existe plano nem limite: todo usuário conecta quantas organizações quiser. Com ela, o plano Grátis tem esse limite e o Pro é ilimitado. Quem já passou do limite não perde nada; só não conecta organizações novas.
+Sem `FREE_ORG_LIMIT` não existe plano nem limite: todo usuário conecta quantas organizações quiser e tem tudo liberado (inclusive o MCP). Com ela, o plano Grátis tem esse limite, o Pro é ilimitado e o Business inclui o MCP. Quem já passou do limite não perde nada; só não conecta organizações novas.
 
 | Variável                       | Descrição                                                                 |
 | ------------------------------ | ------------------------------------------------------------------------- |
 | `FREE_ORG_LIMIT`               | Organizações no plano Grátis (ex.: `2`)                                   |
-| `PAYMENTS_ENABLED`             | `true` libera a assinatura do Pro. Sem isso o Pro aparece como "Em breve" |
+| `PAYMENTS_ENABLED`             | `true` libera as assinaturas. Sem isso os planos pagos aparecem como "Em breve" |
 | `ABACATEPAY_API_KEY`           | Chave da API do [AbacatePay](https://abacatepay.com) (define sandbox ou produção) |
 | `ABACATEPAY_WEBHOOK_SECRET`    | Segredo do webhook, o mesmo cadastrado no AbacatePay                      |
 | `ABACATEPAY_PRODUCT_MONTHLY`   | ID do produto com ciclo `MONTHLY` (`prod_...`)                            |

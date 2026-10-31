@@ -4,7 +4,8 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   // não anunciar o framework (reduz impressão digital)
   poweredByHeader: false,
-  devIndicators: { position: "bottom-right" },
+  // canto inferior direito é do botão do minichat de ajuda
+  devIndicators: { position: "bottom-left" },
   // O SSD é exFAT: o macOS cria arquivos ._* que corrompem o cache em disco do Turbopack.
   experimental: { turbopackFileSystemCacheForDev: false, turbopackFileSystemCacheForBuild: false },
   turbopack: {

@@ -8,21 +8,29 @@ import { decrypt, encrypt } from "@/lib/crypto";
 import {
   addLog,
   deleteConnection,
+  deleteDescription,
+  getDescribeCount,
+  getDescription,
+  putDescribeCount,
+  putDescription,
   getConnection,
   getPassword,
   putPassword,
   setConnectionFields,
 } from "@/lib/db";
-import { deletePatLogin, getPatLogin, listKeepAlive, putKeepAlive, putPatLogin } from "@/lib/db";
+import { deleteKeepAlive, deletePassword, deletePatLogin, getPatLogin, listKeepAlive, putConnection, putKeepAlive, putPatLogin } from "@/lib/db";
 import { manualPingAvailableAt, mapLimit, pingProject } from "@/lib/keepalive";
 import { rateLimit, tooMany } from "@/lib/ratelimit";
 import { loadHub } from "@/lib/hub";
 import { connectionsOfLogin, syncPatLogin } from "@/lib/pat";
 import { cancelSubscription } from "@/lib/abacatepay";
-import { getBilling, orgBudget, updateBilling } from "@/lib/plans";
+import { diffSchema, generateDraft, schemaSnapshot } from "@/lib/describe";
+import { env } from "@/lib/env";
+import { getBilling, hasMcp, orgBudget, orgUsage, updateBilling } from "@/lib/plans";
+import { type McpConfig, setMcpConfig } from "@/lib/mcp";
 import { requireSession } from "@/lib/session";
 import { REGIONS } from "@/lib/status";
-import { clientFor, getProfileWithToken, type Project, SupabaseApiError } from "@/lib/supabase-api";
+import { clientFor, createOrgWithToken, getProfileWithToken, PAT_EXPIRES_AT, type Project, SupabaseApiError } from "@/lib/supabase-api";
 
 export type ActionResult<T = undefined> = { ok: boolean; message: string; data?: T };
 
@@ -66,6 +74,67 @@ export async function pauseProjectAction(orgSlug: string, ref: string, name: str
     return { ok: true, message: `"${name}" está sendo pausado. Isso libera espaço para outro banco grátis nesse e-mail.` };
   } catch (err) {
     await addLog(session.tenantId, { user: session.email, action: "pausar", target: `${name} (${ref})`, ok: false, detail: String(err) });
+    return fail(err);
+  }
+}
+
+export async function deleteProjectAction(orgSlug: string, ref: string, name: string): Promise<ActionResult> {
+  const session = await requireSession();
+  try {
+    await clientFor(await connectionOrThrow(session.tenantId, orgSlug)).deleteProject(ref);
+    // limpa o que o Hub guardava desse projeto (senha e keep-alive)
+    await Promise.all([
+      deletePassword(session.tenantId, ref).catch(() => {}),
+      deleteKeepAlive(session.tenantId, ref).catch(() => {}),
+    ]);
+    await addLog(session.tenantId, { user: session.email, action: "excluir_projeto", target: `${name} (${ref})`, ok: true });
+    revalidatePath("/", "layout");
+    return { ok: true, message: `Banco "${name}" excluído no Supabase. Não há como desfazer.` };
+  } catch (err) {
+    await addLog(session.tenantId, { user: session.email, action: "excluir_projeto", target: `${name} (${ref})`, ok: false, detail: String(err) });
+    return fail(err);
+  }
+}
+
+/** Cria uma organização nova em um login conectado por Access Token. */
+export async function createOrgAction(loginEmail: string, name: string): Promise<ActionResult<{ slug: string }>> {
+  const session = await requireSession();
+  const trimmed = name.trim();
+  if (trimmed.length < 2) return { ok: false, message: "Dê um nome com pelo menos 2 caracteres." };
+  const rl = await rateLimit(session.tenantId, "create", 10, 300);
+  if (!rl.ok) return tooMany(rl.retryAfterSec);
+  try {
+    const usage = await orgUsage(session.tenantId);
+    if (usage.limit !== null && usage.used >= usage.limit) {
+      return { ok: false, message: `Seu plano permite ${usage.limit} organização(ões). Assine o Pro ou desconecte uma para criar outra.` };
+    }
+    const login = await getPatLogin(session.tenantId, loginEmail);
+    if (!login) return { ok: false, message: "Só contas conectadas por Access Token podem criar organizações. Conecte a conta por token em Contas." };
+
+    const org = await createOrgWithToken(decrypt(login.token), trimmed);
+    const slug = org.slug ?? org.id;
+    const now = new Date().toISOString();
+    await putConnection({
+      tenantId: session.tenantId,
+      orgSlug: slug,
+      orgName: org.name,
+      plan: "free",
+      accessToken: login.token,
+      refreshToken: "",
+      expiresAt: PAT_EXPIRES_AT,
+      connectedAt: now,
+      connectedBy: session.email,
+      status: "ok",
+      login: login.email,
+      loginVerified: true,
+      authKind: "pat",
+      tokenVersion: login.createdAt,
+    });
+    await addLog(session.tenantId, { user: session.email, action: "criar_org", target: `${org.name} (${login.email})`, ok: true });
+    revalidatePath("/", "layout");
+    return { ok: true, message: `Organização "${org.name}" criada em ${login.email}.`, data: { slug } };
+  } catch (err) {
+    await addLog(session.tenantId, { user: session.email, action: "criar_org", target: `${trimmed} (${loginEmail})`, ok: false, detail: String(err) });
     return fail(err);
   }
 }
@@ -495,6 +564,117 @@ export async function cancelSubscriptionAction(): Promise<ActionResult> {
     };
   } catch (err) {
     await addLog(session.tenantId, { user: session.email, action: "assinatura_cancelada", target: "?", ok: false, detail: String(err) });
+    return fail(err);
+  }
+}
+
+// ---------- MCP ----------
+
+export async function saveMcpConfigAction(config: McpConfig): Promise<ActionResult> {
+  const session = await requireSession();
+  const plan = (await orgUsage(session.tenantId)).plan;
+  if (!hasMcp(plan)) return { ok: false, message: "O MCP é do plano Business." };
+  await setMcpConfig(session.tenantId, config);
+  await addLog(session.tenantId, { user: session.email, action: "config_mcp", target: `${config.globalTools.length} ações globais`, ok: true });
+  revalidatePath("/mcp");
+  return { ok: true, message: "Configuração do MCP salva." };
+}
+
+// ---------- descrição do banco (IA ou manual) ----------
+
+export type DescriptionDraft = { text: string; doubts: string[]; usedTables: number; totalTables: number };
+
+/** Rascunhos por versão do esquema (o 1º, "Gerar de novo" e "Usar mais tabelas" somam). */
+const DRAFTS_PER_SCHEMA = 3;
+
+/**
+ * Gera um RASCUNHO com IA a partir do esquema. Não salva nada: o usuário revisa antes.
+ * Controle de custo (tudo no servidor, checado ANTES de chamar a IA):
+ * - só com motivo: banco sem descrição ou esquema diferente da última descrição salva;
+ * - até 3 rascunhos por versão do esquema;
+ * - 5/hora e 15/dia por usuário; teto diário geral somando todos (AI_DAILY_DESCRIBE_LIMIT).
+ */
+export async function generateDescriptionAction(
+  orgSlug: string,
+  ref: string,
+  opts: { includeSamples: boolean; depth: "normal" | "ampla" },
+): Promise<ActionResult<DescriptionDraft & { remaining: number }>> {
+  const session = await requireSession();
+  if (!env.aiEnabled) return { ok: false, message: "A IA está desligada nesta instalação (defina ANTHROPIC_API_KEY)." };
+  try {
+    const conn = await connectionOrThrow(session.tenantId, orgSlug);
+    // leitura do esquema: sem IA, sem token
+    const [project, snap, previous, gen] = await Promise.all([
+      clientFor(conn).getProject(ref),
+      schemaSnapshot(conn, ref),
+      getDescription(session.tenantId, ref),
+      getDescribeCount(session.tenantId, ref),
+    ]);
+    if (previous?.fingerprint && previous.fingerprint === snap.fingerprint)
+      return { ok: false, message: "Nenhuma tabela ou coluna mudou desde a última descrição. Se quiser ajustar o texto, use Editar." };
+    const used = gen?.fingerprint === snap.fingerprint ? gen.count : 0;
+    if (used >= DRAFTS_PER_SCHEMA)
+      return {
+        ok: false,
+        message: `Já foram gerados ${DRAFTS_PER_SCHEMA} rascunhos para esta versão do banco. Edite à mão; a IA volta a ficar disponível quando o esquema mudar.`,
+      };
+
+    for (const [scope, action, limit, window] of [
+      [session.tenantId, "describe", 5, 3600],
+      [session.tenantId, "describe-day", 15, 86400],
+      ["GLOBAL", "describe-day", env.aiGlobalDailyDescribe, 86400],
+    ] as const) {
+      const rl = await rateLimit(scope, action, limit, window);
+      if (!rl.ok)
+        return scope === "GLOBAL"
+          ? { ok: false, message: "O limite diário de descrições com IA foi atingido. Tente amanhã ou escreva à mão." }
+          : tooMany(rl.retryAfterSec);
+    }
+
+    await putDescribeCount(session.tenantId, ref, snap.fingerprint, used + 1);
+    const diff = previous ? diffSchema(previous.tables, snap.tables) : undefined;
+    const draft = await generateDraft(conn, project, snap, { ...opts, previous, diff });
+    await addLog(session.tenantId, {
+      user: session.email,
+      action: "descrever_banco",
+      target: `${project.name} (${ref})`,
+      ok: true,
+      detail: `${draft.usedTables} de ${draft.totalTables} tabelas${opts.includeSamples ? ", com linhas de exemplo" : ""}`,
+    });
+    return { ok: true, message: "Rascunho pronto. Revise antes de salvar.", data: { ...draft, remaining: DRAFTS_PER_SCHEMA - used - 1 } };
+  } catch (err) {
+    await addLog(session.tenantId, { user: session.email, action: "descrever_banco", target: ref, ok: false, detail: String(err) });
+    return fail(err);
+  }
+}
+
+/** Salva a descrição revisada (texto vazio apaga) e registra o esquema atual. */
+export async function saveDescriptionAction(orgSlug: string, ref: string, text: string, source: "ai" | "manual"): Promise<ActionResult> {
+  const session = await requireSession();
+  const clean = text.replace(/\s+\n/g, "\n").trim();
+  if (clean.length > 2000) return { ok: false, message: "Use até 2000 caracteres." };
+  try {
+    if (!clean) {
+      await deleteDescription(session.tenantId, ref);
+      revalidatePath(`/p/${orgSlug}/${ref}`);
+      return { ok: true, message: "Descrição removida." };
+    }
+    const conn = await connectionOrThrow(session.tenantId, orgSlug);
+    // banco pausado: salva sem impressão digital (o aviso de mudança volta quando ele estiver no ar)
+    const snap = await schemaSnapshot(conn, ref).catch(() => null);
+    await putDescription(session.tenantId, {
+      ref,
+      text: clean,
+      fingerprint: snap?.fingerprint,
+      tables: snap?.tables,
+      source,
+      updatedAt: new Date().toISOString(),
+      updatedBy: session.email,
+    });
+    await addLog(session.tenantId, { user: session.email, action: "salvar_descricao", target: ref, ok: true });
+    revalidatePath(`/p/${orgSlug}/${ref}`);
+    return { ok: true, message: "Descrição salva. O MCP já usa este texto." };
+  } catch (err) {
     return fail(err);
   }
 }

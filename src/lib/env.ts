@@ -17,6 +17,27 @@ export const env = {
   get table() {
     return required("DYNAMO_TABLE");
   },
+  /**
+   * Recursos de IA (minichat de ajuda e descrição dos bancos). Opcional: só liga com
+   * ANTHROPIC_API_KEY. No open source cada instalação usa a própria chave.
+   */
+  get aiEnabled() {
+    return Boolean(process.env.ANTHROPIC_API_KEY);
+  },
+  /** Modelo da IA (o mais barato por padrão). */
+  get aiModel() {
+    return process.env.AI_MODEL || "claude-haiku-5-5";
+  },
+  /** Teto diário GERAL (todos os usuários somados), para proteger o custo da chave. */
+  get aiGlobalDailyDescribe() {
+    return Number(process.env.AI_DAILY_DESCRIBE_LIMIT) || 300;
+  },
+  get aiGlobalDailyChat() {
+    return Number(process.env.AI_DAILY_CHAT_LIMIT) || 2000;
+  },
+  get mcpUrl() {
+    return (process.env.MCP_URL ?? "https://app.mcp.jangada.dev.br/mcp").replace(/\/$/, "");
+  },
   cognito: {
     get userPoolId() {
       return required("COGNITO_USER_POOL_ID");
