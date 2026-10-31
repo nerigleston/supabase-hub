@@ -11,6 +11,7 @@ import {
   signIn,
   signUp,
 } from "@/lib/cognito";
+import { env } from "@/lib/env";
 import { clearChallenge, createSession, getChallenge, setChallenge } from "@/lib/session";
 
 export type FormState = { error?: string; info?: string; fields?: Record<string, string> } | null;
@@ -52,6 +53,8 @@ export async function signUpAction(_prev: FormState, form: FormData): Promise<Fo
   const email = str(form, "email");
   const password = str(form, "password");
   const fields = { name, email };
+  // A trava vale no servidor: esconder o formulário não basta.
+  if (!env.signupOpen) return { error: "O cadastro está fechado no momento.", fields };
   if (!email || !password) return { error: "Preencha e-mail e senha.", fields };
   if (password !== str(form, "confirm")) return { error: "As senhas não são iguais.", fields };
   if (!form.get("terms")) return { error: "Para criar a conta, aceite os termos de uso.", fields };

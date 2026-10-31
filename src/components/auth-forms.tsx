@@ -15,12 +15,12 @@ import {
 import { EmailField, Field, PasswordField, SubmitButton, useFormFeedback } from "./auth-fields";
 import { TextLink } from "./app-ui";
 
-export function LoginForm({ email, next, info }: { email?: string; next?: string; info?: string }) {
+export function LoginForm({ email, next, info, signupOpen }: { email?: string; next?: string; info?: string; signupOpen: boolean }) {
   const [state, action] = useActionState<FormState, FormData>(loginAction, null);
   const feedback = useFormFeedback(state, info);
   return (
     <form action={action} {...feedback} className="flex flex-col gap-4">
-      <input type="hidden" name="next" value={next ?? "/"} />
+      <input type="hidden" name="next" value={next ?? "/painel"} />
       <EmailField label="E-mail" name="email" required autoComplete="email" autoFocus={!email} defaultValue={state?.fields?.email ?? email} />
       <PasswordField
         autoFocus={Boolean(email)}
@@ -28,7 +28,7 @@ export function LoginForm({ email, next, info }: { email?: string; next?: string
       />
       <SubmitButton pendingLabel="Entrando…">Entrar</SubmitButton>
       <p className="text-center text-sm text-zinc-500">
-        Ainda não tem conta? <TextLink href="/cadastro">Criar conta grátis</TextLink>
+        Ainda não tem conta? <TextLink href="/cadastro">{signupOpen ? "Criar conta" : "Pedir acesso"}</TextLink>
       </p>
     </form>
   );

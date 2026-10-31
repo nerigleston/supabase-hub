@@ -16,6 +16,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { buttonClass, StatusBadge } from "@/components/app-ui";
 import { Logo } from "@/components/logo";
+import { env } from "@/lib/env";
 import { getSession } from "@/lib/session";
 import type { ProjectStatus } from "@/lib/supabase-api";
 
@@ -67,7 +68,7 @@ const FEATURES = [
 ];
 
 const STEPS = [
-  { title: "Crie sua conta", body: "Cadastro com e-mail e senha, sem cartão." },
+  { title: "Crie sua conta", body: "Cadastro com e-mail e senha." },
   { title: "Conecte o Supabase", body: "Autorize pelo OAuth oficial ou cole um Access Token. Repita para cada login." },
   { title: "Pronto", body: "Todos os projetos aparecem juntos. Ligue o keep-alive onde quiser." },
 ];
@@ -166,9 +167,17 @@ function ProductPreview() {
 
 export default async function LandingPage() {
   const session = await getSession();
+  const signupOpen = env.signupOpen;
   const primary = session
     ? { href: "/painel", label: "Abrir o painel" }
-    : { href: "/cadastro", label: "Criar conta grátis" };
+    : signupOpen
+      ? { href: "/cadastro", label: "Criar conta" }
+      : env.accessRequestUrl
+        ? { href: env.accessRequestUrl, label: "Quero ser avisado" }
+        : { href: "/cadastro", label: "Pedir acesso" };
+  const steps = signupOpen
+    ? STEPS
+    : [{ title: "Peça seu acesso", body: "Estamos liberando contas aos poucos. Deixe seu contato e avisamos quando abrir." }, ...STEPS.slice(1)];
 
   return (
     <div className="min-h-screen bg-white text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100">
@@ -190,7 +199,7 @@ export default async function LandingPage() {
             {!session && (
               <Link href="/login" className={buttonClass("secondary")}>Entrar</Link>
             )}
-            <Link href={primary.href} className={buttonClass("primary")}>{session ? "Painel" : "Começar"}</Link>
+            <Link href={primary.href} className={buttonClass("primary")}>{session ? "Painel" : signupOpen ? "Começar" : "Pedir acesso"}</Link>
           </div>
         </div>
       </header>
@@ -223,7 +232,7 @@ export default async function LandingPage() {
                 </a>
               </div>
               <ul className="mt-6 flex flex-wrap gap-x-5 gap-y-2 text-sm text-zinc-500">
-                {["Sem cartão", "OAuth oficial do Supabase", "Tokens criptografados"].map((t) => (
+                {["Open source", "OAuth oficial do Supabase", "Tokens criptografados"].map((t) => (
                   <li key={t} className="flex items-center gap-1.5">
                     <Check className="size-4 text-emerald-600" /> {t}
                   </li>
@@ -263,7 +272,7 @@ export default async function LandingPage() {
           <div className="mx-auto max-w-6xl px-4 md:px-6">
             <h2 className="text-3xl font-semibold tracking-tight">Em 2 minutos está rodando</h2>
             <ol className="mt-10 grid gap-6 md:grid-cols-3">
-              {STEPS.map((s, i) => (
+              {steps.map((s, i) => (
                 <li key={s.title} className="relative rounded-xl border border-zinc-200 p-6 dark:border-zinc-800">
                   <span className="grid size-8 place-items-center rounded-full bg-emerald-600 text-sm font-semibold text-white">{i + 1}</span>
                   <h3 className="mt-4 font-semibold">{s.title}</h3>
@@ -294,7 +303,7 @@ export default async function LandingPage() {
                     Recomendado
                   </span>
                 </div>
-                <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">Crie a conta e use. A gente cuida do resto.</p>
+                <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">Sem servidor para manter. A gente cuida do resto.</p>
                 <ul className="mt-5 flex flex-col gap-2 text-sm">
                   {["Nada para instalar", "Keep-alive diário já funcionando", "Atualizações automáticas", "Infra, backup e segurança por nossa conta"].map((t) => (
                     <li key={t} className="flex items-center gap-2">

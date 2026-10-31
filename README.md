@@ -155,6 +155,8 @@ npm run build && npm start
 | `SUPABASE_OAUTH_CLIENT_ID`     |             | OAuth App do Supabase (sem ele, só conexão por Access Token)              |
 | `SUPABASE_OAUTH_CLIENT_SECRET` |             | Secret do OAuth App                                                       |
 | `CRON_SECRET`                  | ✅ (prod)   | Token exigido em `Authorization: Bearer` pela rota de keep-alive          |
+| `SIGNUP_ENABLED`               |             | `true` abre o cadastro público. **Fechado por padrão**: abra para criar a sua conta e feche depois, se quiser |
+| `ACCESS_REQUEST_URL`           |             | Com o cadastro fechado, destino do botão "Quero ser avisado" (`mailto:` ou URL) |
 
 ---
 
@@ -192,13 +194,6 @@ Permissões IAM mínimas na tabela: `GetItem`, `PutItem`, `UpdateItem`, `DeleteI
 1. Abra uma issue descrevendo o problema ou a ideia antes de PRs grandes.
 2. Faça fork, crie um branch (`feat/minha-ideia`) e rode `npm run lint` antes do PR.
 3. Ao enviar um PR, você concorda em licenciar sua contribuição nos termos da licença do projeto.
-
-## Roadmap
-
-- [ ] Imagem Docker oficial + `docker compose up`
-- [ ] Alternativas ao AWS para self-host: login próprio e armazenamento em Postgres
-- [ ] Times / workspaces com vários usuários
-- [ ] Notificações (e-mail/Slack) quando um projeto pausar ou o keep-alive falhar
 
 ## Licença
 

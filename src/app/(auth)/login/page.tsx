@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { AuthHeader } from "@/components/auth-fields";
 import { LoginForm } from "@/components/auth-forms";
+import { env } from "@/lib/env";
 
 export const metadata: Metadata = { title: "Entrar" };
 
@@ -20,7 +21,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   return (
     <>
       <AuthHeader title="Entrar" subtitle="Acesse o painel das suas contas Supabase." />
-      <LoginForm email={email} next={next} info={sp.erro === "expirado" ? "A sessão de troca de senha expirou. Entre de novo." : info} />
+      <LoginForm email={email} next={next} signupOpen={env.signupOpen} info={sp.erro === "expirado" ? "A sessão de troca de senha expirou. Entre de novo." : info} />
     </>
   );
 }

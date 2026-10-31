@@ -28,6 +28,17 @@ export const env = {
       return required("COGNITO_CLIENT_SECRET");
     },
   },
+  /**
+   * Cadastro aberto ao público? Fechado por padrão: o dono abre com SIGNUP_ENABLED=true
+   * (self-host: ligue para criar a primeira conta e desligue depois, se quiser).
+   */
+  get signupOpen() {
+    return process.env.SIGNUP_ENABLED === "true";
+  },
+  /** Para onde mandar quem quer acesso com o cadastro fechado (mailto: ou URL). */
+  get accessRequestUrl() {
+    return process.env.ACCESS_REQUEST_URL || null;
+  },
   get sessionSecret() {
     return required("SESSION_SECRET");
   },
