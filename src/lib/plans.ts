@@ -17,7 +17,7 @@ export type PlanId = "free" | "pro" | "business";
 /** Preços exibidos na LP. Mude aqui. */
 export const PRICING = {
   pro: { monthly: 29, yearly: 290, currency: "R$" },
-  business: { monthly: 39.9, yearly: 399, currency: "R$" },
+  business: { monthly: 39, yearly: 390, currency: "R$" },
 };
 
 /** Business inclui tudo do Pro. */

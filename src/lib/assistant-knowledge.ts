@@ -148,7 +148,7 @@ Tudo o que foi feito pelo painel nos últimos 90 dias: quem, o quê, quando e se
 ## Planos do BaseHub (/assinar)
 - Grátis: até 2 organizações Supabase conectadas, com os recursos do painel.
 - Pro: R$ 29/mês ou R$ 290/ano. Organizações ilimitadas.
-- Business: R$ 39,90/mês ou R$ 399/ano. Tudo do Pro mais o servidor MCP na nuvem.
+- Business: R$ 39/mês ou R$ 390/ano. Tudo do Pro mais o servidor MCP na nuvem.
 Pagamento pelo AbacatePay (o BaseHub não vê nem guarda dados do cartão). Dá para cancelar a assinatura na página Plano; o acesso pago vale até o fim do período já pago e depois volta ao Grátis.
 Não confunda: o "plano Grátis do BaseHub" (limite de organizações conectadas) é diferente do "plano Free do Supabase" (2 bancos ligados por e-mail).
 
