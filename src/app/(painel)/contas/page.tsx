@@ -4,6 +4,7 @@ import { removeLoginAction } from "@/app/actions";
 import { ConfirmAction } from "@/components/confirm-action";
 import { AccountCard } from "@/components/account-card";
 import { ConnectDialog } from "@/components/connect-dialog";
+import { CreateOrgButton } from "@/components/create-org-button";
 import { buttonClass, Card, EmptyState, FreeMeter, Notice, PageHeader, Tone } from "@/components/app-ui";
 import { env } from "@/lib/env";
 import { type AccountView, loadHub } from "@/lib/hub";
@@ -162,7 +163,8 @@ export default async function ContasPage({ searchParams }: PageProps<"/contas">)
                     </div>
                   </div>
                   {g.pat && g.login && (
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2">
+                      <CreateOrgButton login={g.login} />
                       <Link href="/contas?conectar=token" className={buttonClass("ghost", "px-2.5 py-1 text-xs")}>Atualizar token</Link>
                       <ConfirmAction
                         label="Remover login"

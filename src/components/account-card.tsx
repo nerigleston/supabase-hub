@@ -1,5 +1,7 @@
 "use client";
 
+import { ChevronRight } from "lucide-react";
+import Link from "next/link";
 import { useState, useTransition } from "react";
 import { disconnectAction, renameConnectionAction } from "@/app/actions";
 import type { AccountView } from "@/lib/hub";
@@ -73,6 +75,14 @@ export function AccountCard({ account }: { account: AccountView }) {
       </dl>
 
       {account.error && <p className="text-sm text-rose-700 dark:text-rose-300">{account.error}</p>}
+
+      <Link
+        href={`/contas/${account.orgSlug}`}
+        className="-mx-2 flex items-center justify-between rounded-md px-2 py-1.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50 dark:text-zinc-200 dark:hover:bg-zinc-800/50"
+      >
+        Ver bancos ({account.projects.length})
+        <ChevronRight aria-hidden className="size-4 text-zinc-400" />
+      </Link>
 
       <div className="mt-auto flex flex-wrap gap-2 border-t border-zinc-100 pt-4 dark:border-zinc-800">
         {account.status === "reauth" && (

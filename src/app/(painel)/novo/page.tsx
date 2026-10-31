@@ -7,7 +7,8 @@ import { loadHub } from "@/lib/hub";
 
 export const metadata: Metadata = { title: "Novo banco" };
 
-export default async function NovoPage() {
+export default async function NovoPage({ searchParams }: PageProps<"/novo">) {
+  const sp = await searchParams;
   const session = await requireSession();
   const { accounts } = await loadHub(session.tenantId);
 
@@ -23,6 +24,7 @@ export default async function NovoPage() {
         </EmptyState>
       ) : (
         <NewProjectForm
+          defaultOrg={typeof sp.org === "string" ? sp.org : undefined}
           accounts={accounts.map((a) => ({ slug: a.orgSlug, name: a.name, login: a.login, freeSlots: a.freeSlots, ok: !a.error }))}
         />
       )}
