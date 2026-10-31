@@ -1,8 +1,9 @@
 import { type NextRequest, NextResponse } from "next/server";
 
-// Rotas públicas (sem sessão). O resto exige o cookie de sessão — a validação
-// real fica em requireSession() (lib/session.ts); aqui é só a checagem otimista.
-const PUBLIC = /^\/$|^\/(login|cadastro|confirmar|esqueci-senha|redefinir-senha|nova-senha)(\/|$)/;
+// Rotas do painel: exigem o cookie de sessão. A validação real fica em
+// requireSession() (lib/session.ts); aqui é só a checagem otimista.
+// O resto (LP, login, cadastro…) é público, e endereço inexistente cai na 404.
+const PROTECTED = /^\/(painel|novo|contas|atividade|ajuda|p)(\/|$)/;
 
 export function proxy(request: NextRequest) {
   const path = request.nextUrl.pathname;
@@ -33,7 +34,7 @@ export function proxy(request: NextRequest) {
   // o Next lê este header para carimbar o nonce nos próprios scripts
   requestHeaders.set("content-security-policy", csp);
 
-  const needsAuth = !PUBLIC.test(path);
+  const needsAuth = PROTECTED.test(path);
   if (needsAuth && !request.cookies.has("sh_session")) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
