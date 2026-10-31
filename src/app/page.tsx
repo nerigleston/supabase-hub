@@ -7,6 +7,7 @@ import {
   HeartPulse,
   KeyRound,
   Layers,
+  Plug,
   RefreshCw,
   Server,
   ShieldCheck,
@@ -65,6 +66,11 @@ const FEATURES = [
     body: "Editor SQL, navegador de tabelas e connection strings prontas para copiar, de qualquer conta conectada.",
   },
   {
+    icon: Plug,
+    title: "Controle pelo seu assistente (MCP)",
+    body: "Conecte o BaseHub ao Claude, ChatGPT, Cursor, Claude Code ou Codex por um servidor MCP na nuvem, feito com a Jangada. Você escolhe quais ações e quais bancos ele pode tocar.",
+  },
+  {
     icon: Activity,
     title: "Histórico de tudo",
     body: "Log de atividade com quem criou, pausou, reativou ou rodou SQL, e alerta quando um keep-alive falha.",
@@ -93,6 +99,10 @@ const FAQ = [
   {
     q: "Posso rodar no meu próprio servidor?",
     a: "Pode. O BaseHub é open source (AGPL-3.0). O README do repositório tem o passo a passo para subir com a sua própria AWS e Vercel ou qualquer host Node.js.",
+  },
+  {
+    q: "Como funciona o MCP?",
+    a: "No plano Business, você adiciona o servidor MCP (app.mcp.jangada.dev.br) no seu assistente. O login é pelo próprio BaseHub (OAuth), e só as ações e bancos que você liberar na tela de MCP podem ser usados. O servidor foi construído com a Jangada.",
   },
   {
     q: "É um produto oficial do Supabase?",
@@ -208,6 +218,7 @@ export default async function LandingPage() {
           <nav aria-label="Seções" className="hidden items-center gap-6 text-sm text-zinc-600 md:flex dark:text-zinc-400">
             <a href="#recursos" className="hover:text-zinc-900 dark:hover:text-white">Recursos</a>
             <a href="#como-funciona" className="hover:text-zinc-900 dark:hover:text-white">Como funciona</a>
+            <a href="#mcp" className="hover:text-zinc-900 dark:hover:text-white">MCP</a>
             {orgLimit !== null && <a href="#precos" className="hover:text-zinc-900 dark:hover:text-white">Preços</a>}
             <a href="#open-source" className="hover:text-zinc-900 dark:hover:text-white">Open source</a>
             <a href="#faq" className="hover:text-zinc-900 dark:hover:text-white">Dúvidas</a>
@@ -307,6 +318,44 @@ export default async function LandingPage() {
           </div>
         </section>
 
+        {/* MCP (Business) */}
+        <section id="mcp" className="scroll-mt-20 border-t border-zinc-800 bg-zinc-950 py-20 text-zinc-100">
+          <div className="mx-auto max-w-6xl px-4 md:px-6">
+            <div className="grid gap-10 lg:grid-cols-2 lg:items-center">
+              <div>
+                <span className="inline-flex items-center gap-2 rounded-full bg-emerald-600/15 px-3 py-1 text-xs font-medium text-emerald-300">
+                  <Plug className="size-3.5" /> Plano Business
+                </span>
+                <h2 className="mt-4 text-3xl font-semibold tracking-tight">Seus bancos, controlados pelo seu assistente</h2>
+                <p className="mt-3 text-zinc-400">
+                  Adicione o servidor MCP na nuvem no Claude, ChatGPT, Cursor, Claude Code ou Codex e peça em linguagem natural: &quot;liste os bancos
+                  pausados&quot;, &quot;rode esse SQL no projeto X&quot;, &quot;reative o banco do cliente&quot;. Você decide, na sua tela,
+                  quais ações e quais bancos ele pode tocar, e o login é o seu BaseHub (OAuth).
+                </p>
+                <ul className="mt-6 flex flex-col gap-2 text-sm text-zinc-300">
+                  <li>• Login seguro via OAuth do BaseHub</li>
+                  <li>• Liga/desliga cada ação e limita os bancos</li>
+                  <li>• Ações sensíveis (excluir banco) ficam destacadas</li>
+                </ul>
+                <p className="mt-6 text-sm text-zinc-500">
+                  Servidor MCP feito com a{" "}
+                  <a href="https://jangada.dev.br" target="_blank" rel="noreferrer" className="font-medium text-emerald-400 hover:underline">Jangada</a>.
+                </p>
+              </div>
+              <div className="rounded-xl border border-white/10 bg-black/40 p-5 font-mono text-xs text-zinc-300">
+                <p className="text-zinc-500"># no Claude: Conectores, Adicionar</p>
+                <p className="mt-2 break-all text-emerald-300">{env.mcpUrl}</p>
+                <div className="mt-4 border-t border-white/10 pt-4">
+                  <p className="text-zinc-500"># exemplos</p>
+                  <p className="mt-2">&rarr; liste meus bancos pausados</p>
+                  <p>&rarr; rode &quot;select count(*) from users&quot; no app-agenda</p>
+                  <p>&rarr; reative o banco crm-teste</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
         {/* Preços (só quando o servidor tem planos: FREE_ORG_LIMIT) */}
         {orgLimit !== null && (
           <section id="precos" className="scroll-mt-20 border-t border-zinc-200 py-20 dark:border-zinc-800">
@@ -314,10 +363,10 @@ export default async function LandingPage() {
               <div className="max-w-2xl">
                 <h2 className="text-3xl font-semibold tracking-tight">Preços simples</h2>
                 <p className="mt-3 text-zinc-600 dark:text-zinc-400">
-                  Todos os recursos nos dois planos. A diferença é quantas organizações Supabase você conecta.
+                  Comece de graça. O Pro libera organizações ilimitadas, e o Business adiciona o MCP na nuvem.
                 </p>
               </div>
-              <div className="mt-10 grid gap-4 md:grid-cols-2 lg:max-w-4xl">
+              <div className="mt-10 grid gap-4 md:grid-cols-3">
                 <div className="flex flex-col rounded-xl border border-zinc-200 p-6 dark:border-zinc-800">
                   <h3 className="font-semibold">Grátis</h3>
                   <p className="mt-4">
@@ -360,6 +409,33 @@ export default async function LandingPage() {
                     </a>
                   ) : (
                     <p className="mt-8 text-sm text-zinc-500">Pagamento abre em breve. Comece no Grátis e migre quando quiser.</p>
+                  )}
+                </div>
+                <div className="flex flex-col rounded-xl border border-zinc-200 p-6 dark:border-zinc-800">
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-semibold">Business</h3>
+                    <span className="inline-flex items-center gap-1 rounded-full bg-zinc-900 px-2 py-0.5 text-xs font-medium text-white dark:bg-white dark:text-zinc-900">
+                      <Plug className="size-3" /> MCP
+                    </span>
+                  </div>
+                  <p className="mt-4">
+                    <span className="text-4xl font-semibold tracking-tight">{PRICING.business.currency} {brl(PRICING.business.monthly)}</span>
+                    <span className="text-zinc-500">/mês</span>
+                  </p>
+                  <p className="mt-1 text-sm text-zinc-500">ou {PRICING.business.currency} {brl(PRICING.business.yearly)}/ano</p>
+                  <ul className="mt-6 flex flex-col gap-2 text-sm">
+                    {["Tudo do plano Pro", "MCP na nuvem (Claude, ChatGPT, Cursor, Codex)", "Ligar/desligar ações do MCP", "Suporte prioritário"].map((t) => (
+                      <li key={t} className="flex items-center gap-2">
+                        <Check className="size-4 text-emerald-600" /> {t}
+                      </li>
+                    ))}
+                  </ul>
+                  {payments ? (
+                    <a href={session ? "/assinar" : primary.href} className={buttonClass("secondary", "mt-8 h-10 self-start px-4")}>
+                      {session ? "Assinar o Business" : primary.label}
+                    </a>
+                  ) : (
+                    <p className="mt-8 text-sm text-zinc-500">Pagamento abre em breve.</p>
                   )}
                 </div>
               </div>
