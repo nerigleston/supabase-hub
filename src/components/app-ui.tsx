@@ -36,7 +36,7 @@ const DOT: Record<StatusTone, string> = {
 export function StatusBadge({ status }: { status: ProjectStatus }) {
   const s = STATUS[status] ?? STATUS.UNKNOWN;
   return (
-    <span title={s.hint} className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${TONE[s.tone]}`}>
+    <span title={s.hint} className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium whitespace-nowrap ring-1 ring-inset ${TONE[s.tone]}`}>
       <span aria-hidden className={`size-1.5 rounded-full ${DOT[s.tone]}`} />
       {s.label}
     </span>

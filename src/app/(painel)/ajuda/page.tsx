@@ -50,11 +50,11 @@ export default function AjudaPage() {
         </Section>
 
         <Section id="estados" title="O que significa cada estado">
-          <ul className="grid gap-2 sm:grid-cols-2">
+          <ul className="grid gap-x-4 gap-y-2.5 sm:grid-cols-2">
             {(Object.keys(STATUS) as ProjectStatus[]).map((s) => (
-              <li key={s} className="flex items-start gap-2">
-                <StatusBadge status={s} />
-                <span className="text-xs text-zinc-500">{STATUS[s].hint}</span>
+              <li key={s} className="flex items-start gap-3">
+                <span className="w-32 shrink-0"><StatusBadge status={s} /></span>
+                <span className="text-xs leading-relaxed text-zinc-500">{STATUS[s].hint}</span>
               </li>
             ))}
           </ul>
