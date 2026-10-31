@@ -1,5 +1,5 @@
 import { requireSession } from "@/lib/session";
-import { type ConnString, ConnectionPanel } from "@/components/connection-panel";
+import { type ConnEndpoints, type ConnString, ConnectionPanel } from "@/components/connection-panel";
 import { getPassword } from "@/lib/db";
 import { loadProject } from "@/lib/hub";
 import { clientFor } from "@/lib/supabase-api";
@@ -41,12 +41,21 @@ export default async function ConexaoPage({ params }: PageProps<"/p/[org]/[ref]"
     });
   }
 
+  // dados estruturados para montar os snippets das abas (Prisma, JDBC, .NET...)
+  const endpoints: ConnEndpoints | null = online
+    ? {
+        pooler: primary ? { host: primary.db_host, user: primary.db_user, db: primary.db_name, txPort: primary.db_port, sessionPort: 5432 } : null,
+        direct: { host: `db.${ref}.supabase.co`, user: "postgres", db: "postgres", port: 5432 },
+      }
+    : null;
+
   return (
     <ConnectionPanel
       org={org}
       projectRef={ref}
       apiUrl={`https://${ref}.supabase.co`}
       strings={strings}
+      endpoints={endpoints}
       passwordInfo={stored ? { source: stored.source, updatedAt: stored.updatedAt } : null}
       online={online}
     />

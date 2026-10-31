@@ -3,13 +3,13 @@
 import { useState, useTransition } from "react";
 import { revealApiKeysAction, revealPasswordAction, resetPasswordAction, saveKnownPasswordAction } from "@/app/actions";
 import { ConfirmAction, Spinner } from "./confirm-action";
+import { type ConnEndpoints, ConnectionTabs, PLACEHOLDER } from "./connection-snippets";
 import { CopyField } from "./copy-field";
 import { toast } from "./toast";
 import { buttonClass, Card, inputClass, Tone } from "./app-ui";
 
 export type ConnString = { label: string; hint: string; template: string };
-
-const PLACEHOLDER = "[YOUR-PASSWORD]";
+export type { ConnEndpoints };
 const SOURCE: Record<string, string> = { created: "criada pelo painel", reset: "redefinida pelo painel", manual: "informada e verificada" };
 const fmt = new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" });
 
@@ -18,6 +18,7 @@ export function ConnectionPanel({
   projectRef,
   apiUrl,
   strings,
+  endpoints,
   passwordInfo,
   online,
 }: {
@@ -25,6 +26,7 @@ export function ConnectionPanel({
   projectRef: string;
   apiUrl: string;
   strings: ConnString[];
+  endpoints: ConnEndpoints | null;
   passwordInfo: { source: string; updatedAt: string } | null;
   online: boolean;
 }) {
@@ -70,7 +72,7 @@ export function ConnectionPanel({
       <Card className="flex flex-col gap-4 p-5 xl:col-span-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
-            <h2 className="font-semibold">Connection strings</h2>
+            <h2 className="font-semibold">Conectar</h2>
             <p className="text-sm text-zinc-500">
               {password ? "Já com a senha preenchida." : `Com ${PLACEHOLDER} no lugar da senha.`}{" "}
               Use o pooler (transaction) em serverless e o session/direto em servidores.
@@ -82,11 +84,18 @@ export function ConnectionPanel({
             </button>
           )}
         </div>
-        {strings.length ? (
-          strings.map((s) => <CopyField key={s.label} label={s.label} hint={s.hint} value={fill(s.template)} secret={Boolean(password)} />)
-        ) : (
-          <p className="text-sm text-zinc-500">{online ? "Não foi possível ler a configuração do pooler." : "Reative o projeto para ver as connection strings."}</p>
-        )}
+        {(() => {
+          const uri = strings.length ? (
+            <div className="flex flex-col gap-4" role="tabpanel">
+              {strings.map((s) => (
+                <CopyField key={s.label} label={s.label} hint={s.hint} value={fill(s.template)} secret={Boolean(password)} />
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-zinc-500">{online ? "Não foi possível ler a configuração do pooler." : "Reative o projeto para ver as formas de conexão."}</p>
+          );
+          return endpoints ? <ConnectionTabs endpoints={endpoints} password={password} apiUrl={apiUrl} first={uri} /> : uri;
+        })()}
       </Card>
 
       <Card className="flex flex-col gap-4 p-5">
