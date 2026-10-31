@@ -6,9 +6,9 @@ import type { ProjectStatus } from "@/lib/supabase-api";
 
 export const metadata: Metadata = { title: "Ajuda" };
 
-function Section({ id, title, children }: { id: string; title: string; children: React.ReactNode }) {
+function Section({ id, title, children, wide = false }: { id: string; title: string; children: React.ReactNode; wide?: boolean }) {
   return (
-    <Card id={id} className="scroll-mt-6 p-5">
+    <Card id={id} className={`scroll-mt-6 p-5 ${wide ? "2xl:col-span-2" : ""}`}>
       <h2 className="mb-3 font-semibold">{title}</h2>
       <div className="flex flex-col gap-3 text-sm leading-relaxed text-zinc-700 dark:text-zinc-300">{children}</div>
     </Card>
@@ -32,8 +32,8 @@ export default function AjudaPage() {
   return (
     <>
       <PageHeader title="Ajuda" description="Como conectar contas, o que significa cada estado e atalhos." />
-      <div className="grid gap-8 xl:grid-cols-[minmax(0,52rem)_15rem]">
-      <div className="flex min-w-0 flex-col gap-4">
+      <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_15rem]">
+      <div className="grid min-w-0 items-start gap-4 2xl:grid-cols-2">
         {showSetup && (
         <Section id="oauth" title="Configurar o OAuth App do Supabase (quem instala o painel, uma vez só)">
           <ol className="list-decimal space-y-2 pl-5">
@@ -52,7 +52,7 @@ export default function AjudaPage() {
         </Section>
         )}
 
-        <Section id="contas" title="Conectar várias contas">
+        <Section id="contas" title="Conectar várias contas" wide>
           <p>
             Cada autorização vale para uma organização. O Supabase autoriza com o login que estiver ativo no supabase.com, então para conectar
             um <strong>outro e-mail</strong>: saia do supabase.com (avatar → Log out), clique em <strong>Contas → Conectar conta Supabase</strong> e
@@ -68,8 +68,8 @@ export default function AjudaPage() {
           </p>
         </Section>
 
-        <Section id="estados" title="O que significa cada estado">
-          <ul className="grid gap-x-4 gap-y-2.5 sm:grid-cols-2">
+        <Section id="estados" title="O que significa cada estado" wide>
+          <ul className="grid gap-x-6 gap-y-2.5 sm:grid-cols-2 2xl:grid-cols-3">
             {(Object.keys(STATUS) as ProjectStatus[]).map((s) => (
               <li key={s} className="flex items-start gap-3">
                 <span className="w-32 shrink-0"><StatusBadge status={s} /></span>

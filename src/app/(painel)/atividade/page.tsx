@@ -23,6 +23,11 @@ const ACTIONS: Record<string, string> = {
   ligar_keepalive: "Ligou keep-alive",
   desligar_keepalive: "Desligou keep-alive",
   keepalive_falhou: "Keep-alive diário falhou",
+  excluir_projeto: "Excluiu banco",
+  criar_org: "Criou organização",
+  config_mcp: "Ajustou o MCP",
+  descrever_banco: "Gerou descrição com IA",
+  salvar_descricao: "Salvou a descrição do banco",
 };
 
 const fmt = new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "medium", timeZone: "America/Sao_Paulo" });

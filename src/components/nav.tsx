@@ -1,21 +1,35 @@
 "use client";
 
-import { Menu, X } from "lucide-react";
+import {
+  Activity,
+  BotMessageSquare,
+  CircleHelp,
+  LayoutGrid,
+  type LucideIcon,
+  Menu,
+  PlusCircle,
+  Sparkles,
+  Users,
+  X,
+} from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Logo } from "./logo";
 import { ThemeToggle } from "./theme-toggle";
 
-const LINKS = [
-  { href: "/painel", label: "Visão geral", icon: "▦" },
-  { href: "/novo", label: "Novo banco", icon: "+" },
-  { href: "/contas", label: "Contas", icon: "◎" },
-  { href: "/atividade", label: "Atividade", icon: "≡" },
-  { href: "/ajuda", label: "Ajuda", icon: "?" },
+type NavLink = { href: string; label: string; icon: LucideIcon };
+
+const LINKS: NavLink[] = [
+  { href: "/painel", label: "Visão geral", icon: LayoutGrid },
+  { href: "/novo", label: "Novo banco", icon: PlusCircle },
+  { href: "/contas", label: "Contas", icon: Users },
+  { href: "/mcp", label: "MCP", icon: BotMessageSquare },
+  { href: "/atividade", label: "Atividade", icon: Activity },
+  { href: "/ajuda", label: "Ajuda", icon: CircleHelp },
 ];
 
-const PLAN_LINK = { href: "/assinar", label: "Plano", icon: "★" };
+const PLAN_LINK: NavLink = { href: "/assinar", label: "Plano", icon: Sparkles };
 
 function NavLinks({ pathname, onNavigate, showPlan }: { pathname: string; onNavigate?: () => void; showPlan: boolean }) {
   const isActive = (href: string) => (href === "/painel" ? pathname === "/painel" || pathname.startsWith("/p/") : pathname.startsWith(href));
@@ -27,13 +41,13 @@ function NavLinks({ pathname, onNavigate, showPlan }: { pathname: string; onNavi
           href={l.href}
           onClick={onNavigate}
           aria-current={isActive(l.href) ? "page" : undefined}
-          className={`flex items-center gap-2 rounded-md px-3 py-2.5 text-sm ${
+          className={`flex items-center gap-2.5 rounded-md px-3 py-2.5 text-sm ${
             isActive(l.href)
               ? "bg-emerald-50 font-medium text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200"
               : "text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800"
           }`}
         >
-          <span aria-hidden className="w-4 text-center font-mono">{l.icon}</span>
+          <l.icon aria-hidden className="size-[18px] shrink-0" strokeWidth={1.75} />
           {l.label}
         </Link>
       ))}

@@ -38,12 +38,10 @@ export function ResultGrid({
 }) {
   if (!columns.length) return <p className="p-4 text-sm text-zinc-500">Comando executado. Nenhuma linha retornada.</p>;
 
-  const firstColHeader = stickyFirst
-    ? "sticky left-0 z-20 bg-zinc-50 dark:bg-zinc-900"
-    : "";
-  const firstColCell = stickyFirst
-    ? "sticky left-0 z-10 bg-white group-odd:bg-white group-even:bg-zinc-50/60 dark:bg-zinc-950 dark:group-even:bg-zinc-900/40"
-    : "";
+  // A célula fixa herda o fundo da própria linha (bg-inherit), então a listra
+  // zebrada e o hover batem com o resto da linha, sem destoar.
+  const firstColHeader = stickyFirst ? "sticky left-0 z-20 bg-zinc-100 dark:bg-zinc-800" : "";
+  const firstColCell = stickyFirst ? "sticky left-0 z-10 bg-inherit" : "";
 
   return (
     <div className="flex flex-col">
@@ -64,7 +62,7 @@ export function ResultGrid({
           </thead>
           <tbody>
             {rows.map((r, i) => (
-              <tr key={i} className="group odd:bg-white even:bg-zinc-50/60 hover:bg-emerald-50/50 dark:odd:bg-zinc-950 dark:even:bg-zinc-900/40 dark:hover:bg-emerald-950/20">
+              <tr key={i} className="odd:bg-white even:bg-zinc-50 hover:bg-emerald-50 dark:odd:bg-zinc-950 dark:even:bg-zinc-900 dark:hover:bg-emerald-950/30">
                 {columns.map((c, j) => (
                   <td
                     key={c}
