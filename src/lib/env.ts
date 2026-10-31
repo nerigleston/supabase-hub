@@ -39,6 +39,10 @@ export const env = {
   get accessRequestUrl() {
     return process.env.ACCESS_REQUEST_URL || null;
   },
+  /** Destino dos botões de upgrade: a página de plano, quando o servidor tem planos (FREE_ORG_LIMIT). */
+  get upgradeUrl() {
+    return process.env.FREE_ORG_LIMIT ? "/assinar" : null;
+  },
   get sessionSecret() {
     return required("SESSION_SECRET");
   },

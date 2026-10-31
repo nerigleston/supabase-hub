@@ -7,6 +7,7 @@ import { ConnectDialog } from "@/components/connect-dialog";
 import { buttonClass, Card, EmptyState, FreeMeter, Notice, PageHeader, Tone } from "@/components/app-ui";
 import { env } from "@/lib/env";
 import { type AccountView, loadHub } from "@/lib/hub";
+import { orgUsage } from "@/lib/plans";
 import { requireSession } from "@/lib/session";
 
 export const metadata: Metadata = { title: "Contas" };
@@ -44,6 +45,10 @@ export default async function ContasPage({ searchParams }: PageProps<"/contas">)
   const sp = await searchParams;
   const session = await requireSession();
   const { accounts, loginErrors } = await loadHub(session.tenantId);
+  // depois do loadHub: a sincronização dos tokens pode ter adicionado organizações
+  const usage = await orgUsage(session.tenantId);
+  const atLimit = usage.limit !== null && usage.used >= usage.limit;
+  const upgrade = env.upgradeUrl;
   const configured = env.supabase.configured;
   const error = str(sp.erro) ? ERRORS[str(sp.erro)!] : undefined;
   const groups = groupByLogin(accounts);
@@ -61,6 +66,36 @@ export default async function ContasPage({ searchParams }: PageProps<"/contas">)
       />
 
       <div className="flex flex-col gap-4">
+        {usage.limit !== null && (
+          <Card className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+            <div>
+              <p className="text-sm font-medium">
+                Plano Grátis · {Math.min(usage.used, usage.limit)} de {usage.limit} organizações
+                {usage.used > usage.limit && <span className="font-normal text-zinc-500"> (+{usage.used - usage.limit} de antes do limite)</span>}
+              </p>
+              <div className="mt-2 h-1.5 w-48 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-800" aria-hidden>
+                <div
+                  className={`h-full rounded-full ${atLimit ? "bg-amber-500" : "bg-emerald-600"}`}
+                  style={{ width: `${Math.min(100, (usage.used / Math.max(usage.limit, 1)) * 100)}%` }}
+                />
+              </div>
+              <p className="mt-1.5 text-xs text-zinc-500">
+                {atLimit ? "Limite atingido. No Pro, as organizações são ilimitadas." : "No Pro, as organizações são ilimitadas."}
+              </p>
+            </div>
+            {upgrade && <a href={upgrade} className={buttonClass(atLimit ? "primary" : "secondary")}>Fazer upgrade para o Pro</a>}
+          </Card>
+        )}
+        {str(sp.limite) && (
+          <Notice
+            tone="warn"
+            title="Algumas organizações ficaram de fora"
+            action={upgrade ? <a href={upgrade} className={buttonClass("secondary")}>Fazer upgrade</a> : undefined}
+          >
+            {str(sp.limite)} não {str(sp.limite)!.includes(",") ? "foram conectadas" : "foi conectada"}: o plano Grátis permite até {usage.limit ?? 0}{" "}
+            organizações. Desconecte uma que não usa mais ou faça upgrade para o Pro.
+          </Notice>
+        )}
         {Object.entries(loginErrors).map(([email, message]) => (
           <Notice
             key={email}

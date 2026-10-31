@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import type { NextRequest } from "next/server";
 import { addLog, getConnection, putConnection } from "@/lib/db";
+import { orgBudget } from "@/lib/plans";
 import { requireSession, takeOAuthState } from "@/lib/session";
 import {
   exchangeCode,
@@ -22,6 +23,7 @@ export async function GET(request: NextRequest) {
   const added: string[] = [];
   const renewed: string[] = [];
   let login: string | undefined;
+  const budget = await orgBudget(session.tenantId);
   try {
     const tokens = await exchangeCode(params.get("code")!, saved.verifier);
     const orgs = await listOrganizationsWithToken(tokens.access_token);
@@ -34,6 +36,11 @@ export async function GET(request: NextRequest) {
         listMembersWithToken(tokens.access_token, slug).catch(() => []),
         getConnection(session.tenantId, slug),
       ]);
+      // organização nova só entra se o plano tiver vaga
+      if (!existing && !budget.take()) {
+        budget.block(org.name);
+        continue;
+      }
       const identity = inferLogin(members, saved.hint);
       login ??= identity.login;
       await putConnection({
@@ -63,9 +70,10 @@ export async function GET(request: NextRequest) {
     redirect("/contas?erro=falha");
   }
 
-  if (!added.length && !renewed.length) redirect("/contas?erro=sem_org");
+  if (!added.length && !renewed.length && !budget.blocked.length) redirect("/contas?erro=sem_org");
 
   const q = new URLSearchParams();
+  if (budget.blocked.length) q.set("limite", budget.blocked.join(", "));
   if (added.length) q.set("conectada", added.join(", "));
   if (renewed.length) q.set("renovada", renewed.join(", "));
   // Queria outro e-mail mas só voltaram orgs já conectadas: o supabase.com ainda está no login antigo.

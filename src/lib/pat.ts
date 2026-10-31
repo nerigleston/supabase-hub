@@ -1,6 +1,7 @@
 import "server-only";
 import { decrypt } from "./crypto";
 import { type Connection, getConnection, listConnections, type PatLogin, putConnection } from "./db";
+import type { OrgBudget } from "./plans";
 import { getOrganizationWithToken, listOrganizationsWithToken, PAT_EXPIRES_AT } from "./supabase-api";
 
 /**
@@ -8,7 +9,7 @@ import { getOrganizationWithToken, listOrganizationsWithToken, PAT_EXPIRES_AT } 
  * Orgs criadas depois no Supabase aparecem sozinhas; as que o usuário
  * desconectou (ignored) não voltam. Só grava o que mudou.
  */
-export async function syncPatLogin(tenant: string, login: PatLogin, connectedBy: string) {
+export async function syncPatLogin(tenant: string, login: PatLogin, connectedBy: string, budget: OrgBudget) {
   const token = decrypt(login.token);
   const orgs = await listOrganizationsWithToken(token);
   const ignored = new Set(login.ignored ?? []);
@@ -21,6 +22,11 @@ export async function syncPatLogin(tenant: string, login: PatLogin, connectedBy:
       const existing = await getConnection(tenant, slug);
       // já sincronizada com esta versão do token
       if (existing?.authKind === "pat" && existing.tokenVersion === login.createdAt) return;
+      // organização nova só entra se o plano tiver vaga (decide antes de qualquer outro await)
+      if (!existing && !budget.take()) {
+        budget.block(org.name);
+        return;
+      }
 
       const detail = await getOrganizationWithToken(token, slug).catch(() => null);
       const conn: Connection = {

@@ -158,6 +158,22 @@ npm run build && npm start
 | `SIGNUP_ENABLED`               |             | `true` abre o cadastro público. **Fechado por padrão**: abra para criar a sua conta e feche depois, se quiser |
 | `ACCESS_REQUEST_URL`           |             | Com o cadastro fechado, destino do botão "Quero ser avisado" (`mailto:` ou URL) |
 
+#### Planos e pagamento (opcional, para quem oferece como SaaS)
+
+Sem `FREE_ORG_LIMIT` não existe plano nem limite: todo usuário conecta quantas organizações quiser. Com ela, o plano Grátis tem esse limite e o Pro é ilimitado. Quem já passou do limite não perde nada; só não conecta organizações novas.
+
+| Variável                       | Descrição                                                                 |
+| ------------------------------ | ------------------------------------------------------------------------- |
+| `FREE_ORG_LIMIT`               | Organizações no plano Grátis (ex.: `2`)                                   |
+| `PAYMENTS_ENABLED`             | `true` libera a assinatura do Pro. Sem isso o Pro aparece como "Em breve" |
+| `ABACATEPAY_API_KEY`           | Chave da API do [AbacatePay](https://abacatepay.com) (define sandbox ou produção) |
+| `ABACATEPAY_WEBHOOK_SECRET`    | Segredo do webhook, o mesmo cadastrado no AbacatePay                      |
+| `ABACATEPAY_PRODUCT_MONTHLY`   | ID do produto com ciclo `MONTHLY` (`prod_...`)                            |
+| `ABACATEPAY_PRODUCT_YEARLY`    | ID do produto com ciclo `ANNUALLY` (opcional)                             |
+| `ABACATEPAY_ACCEPT_DEV`        | `true` aceita eventos de sandbox (`devMode`). Nunca use em produção       |
+
+No AbacatePay, crie os produtos de assinatura e um webhook apontando para `<APP_URL>/api/webhooks/abacatepay?webhookSecret=<ABACATEPAY_WEBHOOK_SECRET>` com os eventos `subscription.completed`, `subscription.renewed`, `subscription.cancelled` e `subscription.payment_failed`. Os preços exibidos ficam em `src/lib/plans.ts`.
+
 ---
 
 ## Deploy

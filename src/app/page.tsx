@@ -17,6 +17,8 @@ import Link from "next/link";
 import { buttonClass, StatusBadge } from "@/components/app-ui";
 import { Logo } from "@/components/logo";
 import { env } from "@/lib/env";
+import { abacate } from "@/lib/abacatepay";
+import { freeOrgLimit, PRICING } from "@/lib/plans";
 import { getSession } from "@/lib/session";
 import type { ProjectStatus } from "@/lib/supabase-api";
 
@@ -175,6 +177,10 @@ export default async function LandingPage() {
       : env.accessRequestUrl
         ? { href: env.accessRequestUrl, label: "Quero ser avisado" }
         : { href: "/cadastro", label: "Pedir acesso" };
+  const orgLimit = freeOrgLimit();
+  const upgrade = env.upgradeUrl;
+  const payments = abacate.configured;
+  const brl = (n: number) => n.toLocaleString("pt-BR");
   const steps = signupOpen
     ? STEPS
     : [{ title: "Peça seu acesso", body: "Estamos liberando contas aos poucos. Deixe seu contato e avisamos quando abrir." }, ...STEPS.slice(1)];
@@ -189,6 +195,7 @@ export default async function LandingPage() {
           <nav aria-label="Seções" className="hidden items-center gap-6 text-sm text-zinc-600 md:flex dark:text-zinc-400">
             <a href="#recursos" className="hover:text-zinc-900 dark:hover:text-white">Recursos</a>
             <a href="#como-funciona" className="hover:text-zinc-900 dark:hover:text-white">Como funciona</a>
+            {orgLimit !== null && <a href="#precos" className="hover:text-zinc-900 dark:hover:text-white">Preços</a>}
             <a href="#open-source" className="hover:text-zinc-900 dark:hover:text-white">Open source</a>
             <a href="#faq" className="hover:text-zinc-900 dark:hover:text-white">Dúvidas</a>
           </nav>
@@ -286,6 +293,66 @@ export default async function LandingPage() {
             </p>
           </div>
         </section>
+
+        {/* Preços (só quando o servidor tem planos: FREE_ORG_LIMIT) */}
+        {orgLimit !== null && (
+          <section id="precos" className="scroll-mt-20 border-t border-zinc-200 py-20 dark:border-zinc-800">
+            <div className="mx-auto max-w-6xl px-4 md:px-6">
+              <div className="max-w-2xl">
+                <h2 className="text-3xl font-semibold tracking-tight">Preços simples</h2>
+                <p className="mt-3 text-zinc-600 dark:text-zinc-400">
+                  Todos os recursos nos dois planos. A diferença é quantas organizações Supabase você conecta.
+                </p>
+              </div>
+              <div className="mt-10 grid gap-4 md:grid-cols-2 lg:max-w-4xl">
+                <div className="flex flex-col rounded-xl border border-zinc-200 p-6 dark:border-zinc-800">
+                  <h3 className="font-semibold">Grátis</h3>
+                  <p className="mt-4">
+                    <span className="text-4xl font-semibold tracking-tight">R$ 0</span>
+                  </p>
+                  <p className="mt-1 text-sm text-zinc-500">para sempre</p>
+                  <ul className="mt-6 flex flex-col gap-2 text-sm">
+                    {[`Até ${orgLimit} organizações Supabase`, "Keep-alive diário", "Editor SQL e tabelas", "Histórico de atividade"].map((t) => (
+                      <li key={t} className="flex items-center gap-2">
+                        <Check className="size-4 text-zinc-400" /> {t}
+                      </li>
+                    ))}
+                  </ul>
+                  <Link href={primary.href} className={buttonClass("secondary", "mt-8 h-10 self-start px-4")}>{primary.label}</Link>
+                </div>
+                <div className="flex flex-col rounded-xl border-2 border-emerald-600 p-6">
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-semibold">Pro</h3>
+                    <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+                      {payments ? "Ilimitado" : "Em breve"}
+                    </span>
+                  </div>
+                  <p className="mt-4">
+                    <span className="text-4xl font-semibold tracking-tight">{PRICING.pro.currency} {brl(PRICING.pro.monthly)}</span>
+                    <span className="text-zinc-500">/mês</span>
+                  </p>
+                  <p className="mt-1 text-sm text-zinc-500">
+                    ou {PRICING.pro.currency} {brl(PRICING.pro.yearly)}/ano (2 meses grátis)
+                  </p>
+                  <ul className="mt-6 flex flex-col gap-2 text-sm">
+                    {["Organizações ilimitadas", "Tudo do plano Grátis", "Vários logins Supabase", "Suporte por e-mail"].map((t) => (
+                      <li key={t} className="flex items-center gap-2">
+                        <Check className="size-4 text-emerald-600" /> {t}
+                      </li>
+                    ))}
+                  </ul>
+                  {payments ? (
+                    <a href={session ? (upgrade ?? "/painel") : primary.href} className={buttonClass("primary", "mt-8 h-10 self-start px-4")}>
+                      {session ? "Assinar o Pro" : primary.label}
+                    </a>
+                  ) : (
+                    <p className="mt-8 text-sm text-zinc-500">Pagamento abre em breve. Comece no Grátis e migre quando quiser.</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
 
         {/* Nuvem x self-hosted */}
         <section id="open-source" className="scroll-mt-20 border-y border-zinc-200 bg-zinc-50 py-20 dark:border-zinc-800 dark:bg-zinc-900/40">

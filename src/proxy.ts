@@ -3,7 +3,7 @@ import { type NextRequest, NextResponse } from "next/server";
 // Rotas do painel: exigem o cookie de sessão. A validação real fica em
 // requireSession() (lib/session.ts); aqui é só a checagem otimista.
 // O resto (LP, login, cadastro…) é público, e endereço inexistente cai na 404.
-const PROTECTED = /^\/(painel|novo|contas|atividade|ajuda|p)(\/|$)/;
+const PROTECTED = /^\/(painel|novo|contas|atividade|ajuda|assinar|p)(\/|$)/;
 
 export function proxy(request: NextRequest) {
   const path = request.nextUrl.pathname;
@@ -22,8 +22,8 @@ export function proxy(request: NextRequest) {
     "font-src 'self' data:",
     "connect-src 'self'",
     "frame-ancestors 'none'",
-    // o fluxo OAuth "Uma organização" submete um form que redireciona ao Supabase
-    "form-action 'self' https://api.supabase.com https://supabase.com",
+    // forms que redirecionam para fora: OAuth do Supabase e checkout do AbacatePay
+    "form-action 'self' https://api.supabase.com https://supabase.com https://app.abacatepay.com",
     "base-uri 'self'",
     "object-src 'none'",
     "upgrade-insecure-requests",

@@ -18,6 +18,8 @@ import { manualPingAvailableAt, mapLimit, pingProject } from "@/lib/keepalive";
 import { rateLimit, tooMany } from "@/lib/ratelimit";
 import { loadHub } from "@/lib/hub";
 import { connectionsOfLogin, syncPatLogin } from "@/lib/pat";
+import { cancelSubscription } from "@/lib/abacatepay";
+import { getBilling, orgBudget, updateBilling } from "@/lib/plans";
 import { requireSession } from "@/lib/session";
 import { REGIONS } from "@/lib/status";
 import { clientFor, getProfileWithToken, type Project, SupabaseApiError } from "@/lib/supabase-api";
@@ -171,7 +173,11 @@ export async function connectPatAction(
       ignored: existing?.ignored,
     };
     await putPatLogin(session.tenantId, login);
-    const { added, total } = await syncPatLogin(session.tenantId, login, session.email);
+    const budget = await orgBudget(session.tenantId);
+    const { added, total } = await syncPatLogin(session.tenantId, login, session.email, budget);
+    const blocked = budget.blocked.length
+      ? ` ${budget.blocked.length} organização(ões) ficaram de fora pelo limite do plano Grátis (${budget.blocked.join(", ")}). Faça upgrade para conectar todas.`
+      : "";
     await addLog(session.tenantId, {
       user: session.email,
       action: existing ? "atualizar_token" : "conectar_login",
@@ -182,8 +188,8 @@ export async function connectPatAction(
     return {
       ok: true,
       message: existing
-        ? `Token de ${email} atualizado. ${total} organização(ões) sincronizada(s).`
-        : `${email} conectado com ${total} organização(ões).`,
+        ? `Token de ${email} atualizado. ${total - budget.blocked.length} organização(ões) sincronizada(s).${blocked}`
+        : `${email} conectado com ${total - budget.blocked.length} organização(ões).${blocked}`,
       data: { email, added, total },
     };
   } catch (err) {
@@ -463,6 +469,32 @@ export async function tableRowsAction(
       },
     };
   } catch (err) {
+    return fail(err);
+  }
+}
+
+// ---------- assinatura (AbacatePay) ----------
+
+export async function cancelSubscriptionAction(): Promise<ActionResult> {
+  const session = await requireSession();
+  try {
+    const billing = await getBilling(session.tenantId);
+    if (!billing.subscriptionId || billing.subscriptionStatus === "CANCELLED") {
+      return { ok: false, message: "Não há assinatura ativa para cancelar." };
+    }
+    await cancelSubscription(billing.subscriptionId);
+    // o Pro continua até o fim do período pago (until não muda); o webhook confirma depois
+    await updateBilling(session.tenantId, { subscriptionStatus: "CANCELLED" });
+    await addLog(session.tenantId, { user: session.email, action: "assinatura_cancelada", target: billing.subscriptionId, ok: true });
+    revalidatePath("/", "layout");
+    return {
+      ok: true,
+      message: billing.until
+        ? `Assinatura cancelada. O Pro continua até ${new Date(billing.until).toLocaleDateString("pt-BR")}.`
+        : "Assinatura cancelada.",
+    };
+  } catch (err) {
+    await addLog(session.tenantId, { user: session.email, action: "assinatura_cancelada", target: "?", ok: false, detail: String(err) });
     return fail(err);
   }
 }

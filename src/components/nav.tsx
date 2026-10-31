@@ -15,11 +15,13 @@ const LINKS = [
   { href: "/ajuda", label: "Ajuda", icon: "?" },
 ];
 
-function NavLinks({ pathname, onNavigate }: { pathname: string; onNavigate?: () => void }) {
+const PLAN_LINK = { href: "/assinar", label: "Plano", icon: "★" };
+
+function NavLinks({ pathname, onNavigate, showPlan }: { pathname: string; onNavigate?: () => void; showPlan: boolean }) {
   const isActive = (href: string) => (href === "/painel" ? pathname === "/painel" || pathname.startsWith("/p/") : pathname.startsWith(href));
   return (
     <nav aria-label="Principal" className="flex flex-col gap-1">
-      {LINKS.map((l) => (
+      {(showPlan ? [...LINKS.slice(0, -1), PLAN_LINK, LINKS[LINKS.length - 1]] : LINKS).map((l) => (
         <Link
           key={l.href}
           href={l.href}
@@ -53,7 +55,7 @@ function Footer({ email }: { email: string }) {
   );
 }
 
-export function Nav({ email }: { email: string }) {
+export function Nav({ email, showPlan = false }: { email: string; showPlan?: boolean }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
 
@@ -77,7 +79,7 @@ export function Nav({ email }: { email: string }) {
           <Logo />
         </Link>
         <div className="px-2">
-          <NavLinks pathname={pathname} />
+          <NavLinks pathname={pathname} showPlan={showPlan} />
         </div>
         <div className="mt-auto">
           <Footer email={email} />
@@ -122,7 +124,7 @@ export function Nav({ email }: { email: string }) {
               </button>
             </div>
             <div className="flex-1 overflow-y-auto px-2">
-              <NavLinks pathname={pathname} onNavigate={() => setOpen(false)} />
+              <NavLinks pathname={pathname} onNavigate={() => setOpen(false)} showPlan={showPlan} />
             </div>
             <Footer email={email} />
           </div>

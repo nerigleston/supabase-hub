@@ -2,6 +2,7 @@ import "server-only";
 import { cache } from "react";
 import { type Connection, getConnection, type KeepAlive, listConnections, listKeepAlive, listPatLogins, setConnectionFields } from "./db";
 import { syncPatLogin } from "./pat";
+import { orgBudget } from "./plans";
 import { COUNTS_AS_ACTIVE, FREE_PLAN_ACTIVE_LIMIT } from "./status";
 import { clientFor, inferLogin, type Project, SupabaseApiError } from "./supabase-api";
 
@@ -67,9 +68,10 @@ export async function loadHub(tenant: string): Promise<{ accounts: AccountView[]
   // Logins por Access Token trazem organizações novas automaticamente.
   const patLogins = await listPatLogins(tenant);
   const patErrors = new Map<string, string>();
+  const budget = patLogins.length ? await orgBudget(tenant) : null;
   await Promise.all(
     patLogins.map((l) =>
-      syncPatLogin(tenant, l, l.connectedBy).catch((err) => {
+      syncPatLogin(tenant, l, l.connectedBy, budget!).catch((err) => {
         patErrors.set(l.email, err instanceof Error ? err.message : String(err));
       }),
     ),
