@@ -214,6 +214,7 @@ export function clientFor(conn: Connection) {
         db_pass: input.dbPass,
       }),
     getProject: (ref: string) => run<Project>("GET", `/v1/projects/${ref}`),
+    deleteProject: (ref: string) => run<void>("DELETE", `/v1/projects/${ref}`),
     getPooler: (ref: string) => run<PoolerConfig[]>("GET", `/v1/projects/${ref}/config/database/pooler`),
     getApiKeys: (ref: string) => run<ApiKey[]>("GET", `/v1/projects/${ref}/api-keys?reveal=true`),
     updatePassword: (ref: string, password: string) =>
@@ -238,6 +239,11 @@ export async function getOrganizationWithToken(accessToken: string, slug: string
 
 export async function listMembersWithToken(accessToken: string, slug: string) {
   return call<Member[]>(accessToken, "GET", `/v1/organizations/${slug}/members`);
+}
+
+/** Cria uma organização na conta do Access Token. OAuth (por org) não cria orgs. */
+export async function createOrgWithToken(accessToken: string, name: string) {
+  return call<Organization>(accessToken, "POST", "/v1/organizations", { name });
 }
 
 /**

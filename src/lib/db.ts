@@ -257,6 +257,14 @@ export async function getPassword(tenant: string, ref: string): Promise<StoredPa
   return out.Item ? stripKeys<StoredPassword>(out.Item) : null;
 }
 
+export async function deletePassword(tenant: string, ref: string) {
+  await doc.send(new DeleteCommand({ TableName: env.table, Key: { pk: pk(tenant), sk: `PWD#${ref}` } }));
+}
+
+export async function deleteKeepAlive(tenant: string, ref: string) {
+  await doc.send(new DeleteCommand({ TableName: env.table, Key: { pk: pk(tenant), sk: `KA#${ref}` } }));
+}
+
 export async function putPassword(tenant: string, ref: string, sealedPassword: string, source: StoredPassword["source"]) {
   await doc.send(
     new PutCommand({
@@ -293,4 +301,51 @@ export async function addLog(tenant: string, entry: Omit<LogEntry, "at">) {
 
 export async function listLogs(tenant: string, limit = 100): Promise<LogEntry[]> {
   return (await queryPrefix(tenant, "LOG#", { limit, newestFirst: true })).map((i) => stripKeys<LogEntry>(i));
+}
+
+// ---------- descrição dos bancos (IA ou manual) ----------
+//   pk=T#<tenant>  sk=DESC#<ref>  { text, fingerprint, tables, source, updatedAt, updatedBy }
+
+export type DbDescription = {
+  ref: string;
+  text: string;
+  /** impressão digital do esquema quando a descrição foi revisada */
+  fingerprint?: string;
+  /** tabela -> colunas (para dizer o que mudou depois) */
+  tables?: Record<string, string>;
+  source: "ai" | "manual";
+  updatedAt: string;
+  updatedBy: string;
+};
+
+export async function getDescription(tenant: string, ref: string): Promise<DbDescription | null> {
+  const out = await doc.send(new GetCommand({ TableName: env.table, Key: { pk: pk(tenant), sk: `DESC#${ref}` } }));
+  return out.Item ? stripKeys<DbDescription>(out.Item) : null;
+}
+
+export async function putDescription(tenant: string, d: DbDescription) {
+  await doc.send(new PutCommand({ TableName: env.table, Item: { pk: pk(tenant), sk: `DESC#${d.ref}`, ...d } }));
+}
+
+export async function deleteDescription(tenant: string, ref: string) {
+  await doc.send(new DeleteCommand({ TableName: env.table, Key: { pk: pk(tenant), sk: `DESC#${ref}` } }));
+}
+
+export async function listDescriptions(tenant: string): Promise<DbDescription[]> {
+  return (await queryPrefix(tenant, "DESC#")).map((i) => stripKeys<DbDescription>(i));
+}
+
+/** Rascunhos de descrição já gerados para uma versão do esquema (limite de custo). */
+export async function getDescribeCount(tenant: string, ref: string): Promise<{ fingerprint: string; count: number } | null> {
+  const out = await doc.send(new GetCommand({ TableName: env.table, Key: { pk: pk(tenant), sk: `DESCGEN#${ref}` } }));
+  return out.Item ? { fingerprint: String(out.Item.fingerprint), count: Number(out.Item.count) || 0 } : null;
+}
+
+export async function putDescribeCount(tenant: string, ref: string, fingerprint: string, count: number) {
+  await doc.send(
+    new PutCommand({
+      TableName: env.table,
+      Item: { pk: pk(tenant), sk: `DESCGEN#${ref}`, fingerprint, count, ttl: Math.floor(Date.now() / 1000) + 90 * 86400 },
+    }),
+  );
 }

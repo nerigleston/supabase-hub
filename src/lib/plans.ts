@@ -12,12 +12,18 @@ import { env } from "./env";
 // Sem item = Grátis. O Pro vem do AbacatePay (webhook) ou é ligado à mão (source "manual").
 // Self-host sem FREE_ORG_LIMIT não tem limite nenhum.
 
-export type PlanId = "free" | "pro";
+export type PlanId = "free" | "pro" | "business";
 
 /** Preços exibidos na LP. Mude aqui. */
 export const PRICING = {
   pro: { monthly: 29, yearly: 290, currency: "R$" },
+  business: { monthly: 39.9, yearly: 399, currency: "R$" },
 };
+
+/** Business inclui tudo do Pro. */
+export const hasPro = (p: PlanId) => p === "pro" || p === "business";
+/** Só o Business libera o MCP na nuvem. */
+export const hasMcp = (p: PlanId) => p === "business";
 
 const doc = DynamoDBDocumentClient.from(new DynamoDBClient(awsClientConfig()), {
   marshallOptions: { removeUndefinedValues: true },
@@ -52,15 +58,13 @@ export async function getBilling(tenant: string): Promise<BillingRecord> {
   return (out.Item as BillingRecord | undefined) ?? {};
 }
 
-function isPro(b: BillingRecord) {
-  if (b.plan !== "pro") return false;
-  // período pago vencido volta para o Grátis
-  return !b.until || new Date(b.until).getTime() >= Date.now();
-}
-
 export async function getPlan(tenant: string): Promise<PlanId> {
-  if (!plansEnabled()) return "pro";
-  return isPro(await getBilling(tenant)) ? "pro" : "free";
+  if (!plansEnabled()) return "business"; // self-host: tudo liberado
+  const b = await getBilling(tenant);
+  if (!b.plan || b.plan === "free") return "free";
+  // período pago vencido volta para o Grátis
+  const active = !b.until || new Date(b.until).getTime() >= Date.now();
+  return active ? b.plan : "free";
 }
 
 /** Grava campos do registro de cobrança (merge). */
@@ -117,7 +121,7 @@ export type OrgUsage = { plan: PlanId; used: number; limit: number | null };
 /** Quantas organizações o tenant tem e quantas o plano permite (null = sem limite). */
 export async function orgUsage(tenant: string): Promise<OrgUsage> {
   const [plan, conns] = await Promise.all([getPlan(tenant), listConnections(tenant)]);
-  return { plan, used: conns.length, limit: plan === "pro" ? null : freeOrgLimit() };
+  return { plan, used: conns.length, limit: plan === "free" ? freeOrgLimit() : null };
 }
 
 /**
