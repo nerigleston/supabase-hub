@@ -3,12 +3,14 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-export function ProjectTabs({ base }: { base: string }) {
+export function ProjectTabs({ base, canManage = false }: { base: string; canManage?: boolean }) {
   const pathname = usePathname();
   const tabs = [
     { href: base, label: "Conexão" },
     { href: `${base}/tabelas`, label: "Tabelas" },
     { href: `${base}/sql`, label: "SQL" },
+    // quem tem acesso e convites: só dono e Admin
+    ...(canManage ? [{ href: `${base}/acesso`, label: "Acesso" }] : []),
   ];
   return (
     <nav aria-label="Seções do projeto" className="mb-6 flex gap-1 border-b border-zinc-200 dark:border-zinc-800">

@@ -1,5 +1,7 @@
 import { requireSession } from "@/lib/session";
 import Link from "next/link";
+import { Suspense } from "react";
+import { SharedWithMe } from "@/components/shared-with-me";
 import { enableKeepAliveForAllAction } from "@/app/actions";
 import { AutoRefresh } from "@/components/auto-refresh";
 import { ConfirmAction } from "@/components/confirm-action";
@@ -8,7 +10,8 @@ import { buttonClass, EmptyState, Notice, PageHeader, Stat } from "@/components/
 import { loadHub } from "@/lib/hub";
 import { BUSY_STATUSES } from "@/lib/status";
 
-export default async function OverviewPage() {
+export default async function OverviewPage({ searchParams }: PageProps<"/painel">) {
+  const sp = await searchParams;
   const session = await requireSession();
   const { accounts, projects, logins: loginList, loadedAt } = await loadHub(session.tenantId);
 
@@ -39,6 +42,12 @@ export default async function OverviewPage() {
           </>
         }
       />
+
+      {sp.saiu && (
+        <div className="mb-6">
+          <Notice tone="ok" title="Você saiu do banco compartilhado">O acesso foi removido do seu painel e do seu MCP.</Notice>
+        </div>
+      )}
 
       {accounts.length === 0 ? (
         <EmptyState
@@ -107,6 +116,12 @@ export default async function OverviewPage() {
           </section>
         </div>
       )}
+
+      <div className="mt-8">
+        <Suspense fallback={null}>
+          <SharedWithMe tenant={session.tenantId} />
+        </Suspense>
+      </div>
     </>
   );
 }

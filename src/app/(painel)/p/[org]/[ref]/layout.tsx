@@ -1,4 +1,3 @@
-import { requireSession } from "@/lib/session";
 import Link from "next/link";
 import { Suspense } from "react";
 import { ProjectDescriptionSection } from "@/components/project-description-section";
@@ -10,13 +9,16 @@ import { PingNowButton } from "@/components/ping-now-button";
 import { ProjectTabs } from "@/components/project-tabs";
 import { listKeepAlive } from "@/lib/db";
 import { buttonClass, Notice, StatusBadge } from "@/components/app-ui";
+import { resolveAccess } from "@/lib/access";
 import { loadProject } from "@/lib/hub";
+import { can, ROLE_LABEL } from "@/lib/roles";
+import { leaveAction } from "@/app/share-actions";
 import { BUSY_STATUSES, regionLabel } from "@/lib/status";
 
 export default async function ProjectLayout({ children, params }: LayoutProps<"/p/[org]/[ref]">) {
   const { org, ref } = await params;
-  const session = await requireSession();
-  const result = await loadProject(session.tenantId, org, ref);
+  const access = await resolveAccess(org, ref);
+  const result = access ? await loadProject(access.tenant, org, ref) : { error: "Você não tem acesso a este banco. Se alguém compartilhou com você, abra o link do convite que chegou por e-mail." };
   const base = `/p/${org}/${ref}`;
 
   const breadcrumb = (
@@ -43,7 +45,9 @@ export default async function ProjectLayout({ children, params }: LayoutProps<"/
   }
 
   const { project, conn } = result;
-  const ka = (await listKeepAlive(session.tenantId)).find((k) => k.ref === ref);
+  const { role, shared } = access!;
+  const canWrite = can.write(role);
+  const ka = (await listKeepAlive(access!.tenant)).find((k) => k.ref === ref);
   const paused = project.status === "INACTIVE" || project.status === "RESTORE_FAILED";
   const active = project.status === "ACTIVE_HEALTHY" || project.status === "ACTIVE_UNHEALTHY";
 
@@ -55,6 +59,11 @@ export default async function ProjectLayout({ children, params }: LayoutProps<"/
           <div className="flex flex-wrap items-center gap-3">
             <h1 className="text-xl font-semibold tracking-tight">{project.name}</h1>
             <StatusBadge status={project.status} />
+            {shared && (
+              <span className="rounded-full bg-sky-100 px-2 py-0.5 text-xs font-medium text-sky-800 dark:bg-sky-950 dark:text-sky-300">
+                Compartilhado por {shared.ownerEmail} · {ROLE_LABEL[role]}
+              </span>
+            )}
           </div>
           <p className="mt-1 text-sm text-zinc-500">
             {conn.label || conn.orgName} · {regionLabel(project.region)}
@@ -62,7 +71,7 @@ export default async function ProjectLayout({ children, params }: LayoutProps<"/
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {paused && (
+          {paused && canWrite && (
             <ConfirmAction
               label="Reativar"
               variant="primary"
@@ -76,7 +85,7 @@ export default async function ProjectLayout({ children, params }: LayoutProps<"/
               action={restoreProjectAction.bind(null, org, ref, project.name)}
             />
           )}
-          {active && (
+          {active && canWrite && (
             <ConfirmAction
               label="Pausar"
               variant="secondary"
@@ -97,13 +106,30 @@ export default async function ProjectLayout({ children, params }: LayoutProps<"/
               action={pauseProjectAction.bind(null, org, ref, project.name)}
             />
           )}
-          <a href={`https://supabase.com/dashboard/project/${ref}`} target="_blank" rel="noreferrer" className={buttonClass("secondary", "py-2")}>
-            Abrir no Supabase ↗
-          </a>
+          {!shared && (
+            <a href={`https://supabase.com/dashboard/project/${ref}`} target="_blank" rel="noreferrer" className={buttonClass("secondary", "py-2")}>
+              Abrir no Supabase ↗
+            </a>
+          )}
+          {shared && (
+            <ConfirmAction
+              label="Sair deste banco"
+              variant="ghost"
+              size="md"
+              confirm={{
+                title: `Sair de "${project.name}"?`,
+                body: "Você perde o acesso a este banco no BaseHub e no MCP. Para voltar, alguém precisa convidar você de novo.",
+                confirmLabel: "Sair do banco",
+                danger: true,
+              }}
+              action={leaveAction.bind(null, org, ref)}
+            />
+          )}
         </div>
       </header>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-3">
+        {canWrite && (
         <KeepAliveToggle
           key={`${ka?.lastPingAt ?? ""}-${ka?.enabled ?? ""}`}
           org={org}
@@ -113,7 +139,8 @@ export default async function ProjectLayout({ children, params }: LayoutProps<"/
           disabled={!ka?.enabled && !active}
           showLabel
         />
-        {active && <PingNowButton org={org} projectRef={ref} name={project.name} lastManualPingAt={ka?.lastManualPingAt} />}
+        )}
+        {active && canWrite && <PingNowButton org={org} projectRef={ref} name={project.name} lastManualPingAt={ka?.lastManualPingAt} />}
         </div>
         <AutoRefresh busy={BUSY_STATUSES.has(project.status)} loadedAt={result.loadedAt} />
       </div>
@@ -125,9 +152,9 @@ export default async function ProjectLayout({ children, params }: LayoutProps<"/
         </div>
       )}
       <Suspense fallback={<div className="mb-4 h-20 animate-pulse rounded-xl bg-zinc-100 dark:bg-zinc-900" aria-hidden />}>
-        <ProjectDescriptionSection tenant={session.tenantId} conn={conn} org={org} projectRef={ref} online={active} />
+        <ProjectDescriptionSection tenant={access!.tenant} conn={conn} org={org} projectRef={ref} online={active} canEdit={canWrite} />
       </Suspense>
-      <ProjectTabs base={base} />
+      <ProjectTabs base={base} canManage={can.manage(role)} />
       {children}
     </>
   );

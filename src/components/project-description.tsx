@@ -22,6 +22,7 @@ export function ProjectDescription({
   stale,
   aiEnabled,
   online,
+  canEdit = true,
 }: {
   org: string;
   projectRef: string;
@@ -29,6 +30,7 @@ export function ProjectDescription({
   stale: StaleInfo;
   aiEnabled: boolean;
   online: boolean;
+  canEdit?: boolean;
 }) {
   const [desc, setDesc] = useState(initial);
   const [isStale, setIsStale] = useState(Boolean(stale));
@@ -79,7 +81,7 @@ export function ProjectDescription({
               : "Uma descrição curta ajuda você e o MCP a saberem do que este banco trata."}
           </p>
         </div>
-        {mode === "view" && (
+        {mode === "view" && canEdit && (
           <div className="flex flex-wrap gap-2">
             {/* IA só quando há motivo (sem descrição ou esquema mudou): controle de custo */}
             {aiEnabled && online && !desc && (
@@ -97,7 +99,7 @@ export function ProjectDescription({
 
       {mode === "view" && desc && <p className="text-sm leading-relaxed whitespace-pre-line text-zinc-700 dark:text-zinc-200">{desc.text}</p>}
 
-      {mode === "view" && isStale && stale && desc && (
+      {mode === "view" && canEdit && isStale && stale && desc && (
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200">
           <span>
             O esquema mudou desde a última revisão
