@@ -1,16 +1,8 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import {
-  authErrorMessage,
-  completeNewPassword,
-  confirmForgotPassword,
-  confirmSignUp,
-  forgotPassword,
-  resendCode,
-  signIn,
-  signUp,
-} from "@/lib/cognito";
+import { adminConfirm, adminSetPassword, authErrorMessage, completeNewPassword, signIn, signUp, userStatus } from "@/lib/cognito";
+import { checkCode, CodeError, codeMessage, consumeCode, sendResetCode, sendSignupCode } from "@/lib/email-codes";
 import { env } from "@/lib/env";
 import { clearChallenge, createSession, getChallenge, setChallenge } from "@/lib/session";
 
@@ -37,7 +29,7 @@ export async function loginAction(_prev: FormState, form: FormData): Promise<For
   }
 
   if (result.kind === "unconfirmed") {
-    await resendCode(email).catch(() => {});
+    await sendSignupCode(email).catch(() => {});
     redirect(`/confirmar?${q(email)}&reenviado=1`);
   }
   if (result.kind === "new_password") {
@@ -64,15 +56,20 @@ export async function signUpAction(_prev: FormState, form: FormData): Promise<Fo
   } catch (err) {
     return { error: authErrorMessage(err), fields };
   }
+  // o código sai pelo Resend (o Cognito não envia e-mail); se falhar, a tela de confirmação oferece reenviar
+  await sendSignupCode(email).catch(() => {});
   redirect(`/confirmar?${q(email)}`);
 }
 
 export async function confirmAction(_prev: FormState, form: FormData): Promise<FormState> {
-  const email = str(form, "email");
-  const code = str(form, "code");
-  if (!/^\d{6}$/.test(code.trim())) return { error: "O código tem 6 números.", fields: { email } };
+  const email = str(form, "email").trim().toLowerCase();
+  const code = str(form, "code").trim();
+  if (!/^\d{6}$/.test(code)) return { error: "O código tem 6 números.", fields: { email } };
   try {
-    await confirmSignUp(email, code);
+    const check = await checkCode("signup", email, code);
+    if (check !== "ok") return { error: codeMessage[check], fields: { email } };
+    await adminConfirm(email);
+    await consumeCode("signup", email);
   } catch (err) {
     return { error: authErrorMessage(err), fields: { email } };
   }
@@ -80,32 +77,44 @@ export async function confirmAction(_prev: FormState, form: FormData): Promise<F
 }
 
 export async function resendAction(email: string): Promise<FormState> {
+  const info: FormState = { info: "Se houver um cadastro pendente com este e-mail, enviamos um novo código. Confira também a caixa de spam." };
   try {
-    await resendCode(email);
-    return { info: "Enviamos um novo código. Confira também a caixa de spam." };
+    // só conta não confirmada recebe código de cadastro; a resposta é a mesma (não revela quem tem conta)
+    if ((await userStatus(email)) === "UNCONFIRMED") await sendSignupCode(email);
+    return info;
   } catch (err) {
+    if (err instanceof CodeError) return { error: err.message };
     return { error: authErrorMessage(err) };
   }
 }
 
 export async function forgotAction(_prev: FormState, form: FormData): Promise<FormState> {
-  const email = str(form, "email");
+  const email = str(form, "email").trim().toLowerCase();
   if (!email) return { error: "Informe o e-mail da conta." };
   try {
-    await forgotPassword(email);
+    // mesma resposta exista ou não a conta (não revela quem está cadastrado)
+    if (await userStatus(email)) await sendResetCode(email);
   } catch (err) {
+    if (err instanceof CodeError) return { error: err.message, fields: { email } };
     return { error: authErrorMessage(err), fields: { email } };
   }
   redirect(`/redefinir-senha?${q(email)}`);
 }
 
 export async function resetAction(_prev: FormState, form: FormData): Promise<FormState> {
-  const email = str(form, "email");
-  const code = str(form, "code");
+  const email = str(form, "email").trim().toLowerCase();
+  const code = str(form, "code").trim();
   const password = str(form, "password");
   if (password !== str(form, "confirm")) return { error: "As senhas não são iguais.", fields: { email, code } };
+  if (!/^\d{6}$/.test(code)) return { error: "O código tem 6 números.", fields: { email, code } };
   try {
-    await confirmForgotPassword(email, code, password);
+    const check = await checkCode("reset", email, code);
+    if (check !== "ok") return { error: codeMessage[check], fields: { email, code } };
+    // a política de senha é do Cognito: se a senha não servir, o código continua valendo
+    await adminSetPassword(email, password);
+    // trocar a senha pelo e-mail também prova que o e-mail é dela
+    await adminConfirm(email);
+    await consumeCode("reset", email);
   } catch (err) {
     return { error: authErrorMessage(err), fields: { email, code } };
   }

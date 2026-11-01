@@ -1,11 +1,11 @@
 import "server-only";
 import {
+  AdminConfirmSignUpCommand,
+  AdminGetUserCommand,
+  AdminSetUserPasswordCommand,
+  AdminUpdateUserAttributesCommand,
   CognitoIdentityProviderClient,
-  ConfirmForgotPasswordCommand,
-  ConfirmSignUpCommand,
-  ForgotPasswordCommand,
   InitiateAuthCommand,
-  ResendConfirmationCodeCommand,
   RespondToAuthChallengeCommand,
   SignUpCommand,
 } from "@aws-sdk/client-cognito-identity-provider";
@@ -117,32 +117,35 @@ export async function signUp(emailRaw: string, password: string, name: string) {
   );
 }
 
-export async function confirmSignUp(emailRaw: string, code: string) {
+// Os e-mails de código são do próprio BaseHub (lib/email-codes, via Resend). O Cognito
+// não envia nada: com o código conferido, o app confirma a conta e define a senha
+// pelas APIs de admin (a role do app precisa de AdminConfirmSignUp, AdminGetUser,
+// AdminSetUserPassword e AdminUpdateUserAttributes neste pool).
+
+/** Status da conta no Cognito (UNCONFIRMED, CONFIRMED...) ou null se não existe. */
+export async function userStatus(emailRaw: string): Promise<string | null> {
+  try {
+    const out = await client.send(new AdminGetUserCommand({ UserPoolId: env.cognito.userPoolId, Username: normalize(emailRaw) }));
+    return out.UserStatus ?? null;
+  } catch (err) {
+    if ((err as { name?: string }).name === "UserNotFoundException") return null;
+    throw err;
+  }
+}
+
+/** Confirma o cadastro (o código já foi conferido) e marca o e-mail como verificado. */
+export async function adminConfirm(emailRaw: string) {
   const email = normalize(emailRaw);
+  if ((await userStatus(email)) === "UNCONFIRMED")
+    await client.send(new AdminConfirmSignUpCommand({ UserPoolId: env.cognito.userPoolId, Username: email }));
   await client.send(
-    new ConfirmSignUpCommand({ ClientId: env.cognito.clientId, SecretHash: secretHash(email), Username: email, ConfirmationCode: code.trim() }),
+    new AdminUpdateUserAttributesCommand({ UserPoolId: env.cognito.userPoolId, Username: email, UserAttributes: [{ Name: "email_verified", Value: "true" }] }),
   );
 }
 
-export async function resendCode(emailRaw: string) {
-  const email = normalize(emailRaw);
-  await client.send(new ResendConfirmationCodeCommand({ ClientId: env.cognito.clientId, SecretHash: secretHash(email), Username: email }));
-}
-
-export async function forgotPassword(emailRaw: string) {
-  const email = normalize(emailRaw);
-  await client.send(new ForgotPasswordCommand({ ClientId: env.cognito.clientId, SecretHash: secretHash(email), Username: email }));
-}
-
-export async function confirmForgotPassword(emailRaw: string, code: string, newPassword: string) {
-  const email = normalize(emailRaw);
+/** Define a nova senha (o código de troca já foi conferido). A política de senha do pool continua valendo. */
+export async function adminSetPassword(emailRaw: string, newPassword: string) {
   await client.send(
-    new ConfirmForgotPasswordCommand({
-      ClientId: env.cognito.clientId,
-      SecretHash: secretHash(email),
-      Username: email,
-      ConfirmationCode: code.trim(),
-      Password: newPassword,
-    }),
+    new AdminSetUserPasswordCommand({ UserPoolId: env.cognito.userPoolId, Username: normalize(emailRaw), Password: newPassword, Permanent: true }),
   );
 }
