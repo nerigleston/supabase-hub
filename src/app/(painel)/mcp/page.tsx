@@ -5,6 +5,7 @@ import { McpSettings } from "@/components/mcp-settings";
 import { buttonClass, Notice, PageHeader } from "@/components/app-ui";
 import { env } from "@/lib/env";
 import { loadHub } from "@/lib/hub";
+import { listSharedWithMe } from "@/lib/shares";
 import { CATALOG, getMcpConfig } from "@/lib/mcp";
 import { hasMcp, orgUsage } from "@/lib/plans";
 import { requireSession } from "@/lib/session";
@@ -31,7 +32,7 @@ export default async function McpPage() {
     );
   }
 
-  const { projects } = await loadHub(session.tenantId);
+  const [{ projects }, shared] = await Promise.all([loadHub(session.tenantId), listSharedWithMe(session.tenantId)]);
 
   return (
     <>
@@ -50,7 +51,11 @@ export default async function McpPage() {
             perDb: !!t.permissionOnly || "project_ref" in t.inputSchema.properties,
           }))}
           config={cfg}
-          projects={projects.map((p) => ({ ref: p.ref, name: p.name, account: p.account }))}
+          projects={[
+            ...projects.map((p) => ({ ref: p.ref, name: p.name, account: p.account })),
+            // compartilhados comigo: o convidado pode restringir ainda mais no MCP dele
+            ...shared.map((sh) => ({ ref: sh.ref, name: sh.projectName, account: `Compartilhados por ${sh.ownerEmail}` })),
+          ]}
         />
       </div>
     </>
