@@ -8,7 +8,7 @@ export default async function EsqueciSenhaPage({ searchParams }: PageProps<"/esq
   const { email } = await searchParams;
   return (
     <>
-      <AuthHeader title="Esqueceu a senha?" subtitle="Informe seu e-mail e enviaremos um código para criar uma nova senha." />
+      <AuthHeader step="Passo 1 de 3" title="Esqueceu a senha?" subtitle="Informe seu e-mail e enviaremos um código para criar uma nova senha." />
       <ForgotForm email={typeof email === "string" ? email : undefined} />
     </>
   );
