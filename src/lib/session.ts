@@ -3,6 +3,7 @@ import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { env } from "./env";
+import { rememberUser } from "./users";
 
 export const SESSION_COOKIE = "sh_session";
 const SESSION_HOURS = 12;
@@ -30,6 +31,8 @@ export async function createSession(identity: { sub: string; email: string }) {
     .setExpirationTime(`${SESSION_HOURS}h`)
     .sign(secret());
   (await cookies()).set(SESSION_COOKIE, token, { ...cookieBase(), maxAge: SESSION_HOURS * 3600 });
+  // índice e-mail -> conta (para convites só a quem já tem conta); falha não bloqueia o login
+  await rememberUser({ email: identity.email, sub: identity.sub, tenantId: identity.sub }).catch(() => {});
 }
 
 export async function getSession(): Promise<Session | null> {

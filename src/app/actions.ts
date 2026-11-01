@@ -28,7 +28,9 @@ import { diffSchema, generateDraft, schemaSnapshot } from "@/lib/describe";
 import { env } from "@/lib/env";
 import { getBilling, hasMcp, orgBudget, orgUsage, updateBilling } from "@/lib/plans";
 import { type McpConfig, setMcpConfig } from "@/lib/mcp";
+import { type Access, actor, requireAccess } from "@/lib/access";
 import { requireSession } from "@/lib/session";
+import { removeAllMembers } from "@/lib/shares";
 import { REGIONS } from "@/lib/status";
 import { clientFor, createOrgWithToken, getProfileWithToken, PAT_EXPIRES_AT, type Project, SupabaseApiError } from "@/lib/supabase-api";
 
@@ -52,46 +54,62 @@ function generatePassword(length = 24) {
 
 // ---------- projetos ----------
 
-export async function restoreProjectAction(orgSlug: string, ref: string, name: string): Promise<ActionResult> {
-  const session = await requireSession();
+/** Porteiro das ações de banco: dono ou convidado com o papel mínimo. */
+async function gate(orgSlug: string, ref: string, need: Parameters<typeof requireAccess>[2]): Promise<Access | ActionResult<never>> {
   try {
-    await clientFor(await connectionOrThrow(session.tenantId, orgSlug)).restoreProject(ref);
-    await addLog(session.tenantId, { user: session.email, action: "reativar", target: `${name} (${ref})`, ok: true });
+    return await requireAccess(orgSlug, ref, need);
+  } catch (err) {
+    return fail(err);
+  }
+}
+const denied = (x: Access | ActionResult<never>): x is ActionResult<never> => "ok" in x;
+
+
+export async function restoreProjectAction(orgSlug: string, ref: string, name: string): Promise<ActionResult> {
+  const a = await gate(orgSlug, ref, "write");
+  if (denied(a)) return a;
+  try {
+    await clientFor(a.conn).restoreProject(ref);
+    await addLog(a.tenant, { user: actor(a), action: "reativar", target: `${name} (${ref})`, ok: true });
     revalidatePath("/", "layout");
     return { ok: true, message: `Reativação de "${name}" iniciada. Leva de 2 a 5 minutos.` };
   } catch (err) {
-    await addLog(session.tenantId, { user: session.email, action: "reativar", target: `${name} (${ref})`, ok: false, detail: String(err) });
+    await addLog(a.tenant, { user: actor(a), action: "reativar", target: `${name} (${ref})`, ok: false, detail: String(err) });
     return fail(err);
   }
 }
 
 export async function pauseProjectAction(orgSlug: string, ref: string, name: string): Promise<ActionResult> {
-  const session = await requireSession();
+  const a = await gate(orgSlug, ref, "write");
+  if (denied(a)) return a;
   try {
-    await clientFor(await connectionOrThrow(session.tenantId, orgSlug)).pauseProject(ref);
-    await addLog(session.tenantId, { user: session.email, action: "pausar", target: `${name} (${ref})`, ok: true });
+    await clientFor(a.conn).pauseProject(ref);
+    await addLog(a.tenant, { user: actor(a), action: "pausar", target: `${name} (${ref})`, ok: true });
     revalidatePath("/", "layout");
     return { ok: true, message: `"${name}" está sendo pausado. Isso libera espaço para outro banco grátis nesse e-mail.` };
   } catch (err) {
-    await addLog(session.tenantId, { user: session.email, action: "pausar", target: `${name} (${ref})`, ok: false, detail: String(err) });
+    await addLog(a.tenant, { user: actor(a), action: "pausar", target: `${name} (${ref})`, ok: false, detail: String(err) });
     return fail(err);
   }
 }
 
 export async function deleteProjectAction(orgSlug: string, ref: string, name: string): Promise<ActionResult> {
-  const session = await requireSession();
+  const a = await gate(orgSlug, ref, "delete");
+  if (denied(a)) return a;
   try {
-    await clientFor(await connectionOrThrow(session.tenantId, orgSlug)).deleteProject(ref);
-    // limpa o que o Hub guardava desse projeto (senha e keep-alive)
+    await clientFor(a.conn).deleteProject(ref);
+    // limpa o que o Hub guardava desse projeto (senha, keep-alive, descrição e compartilhamentos)
     await Promise.all([
-      deletePassword(session.tenantId, ref).catch(() => {}),
-      deleteKeepAlive(session.tenantId, ref).catch(() => {}),
+      deletePassword(a.tenant, ref).catch(() => {}),
+      deleteKeepAlive(a.tenant, ref).catch(() => {}),
+      deleteDescription(a.tenant, ref).catch(() => {}),
+      removeAllMembers(a.tenant, ref).catch(() => {}),
     ]);
-    await addLog(session.tenantId, { user: session.email, action: "excluir_projeto", target: `${name} (${ref})`, ok: true });
+    await addLog(a.tenant, { user: actor(a), action: "excluir_projeto", target: `${name} (${ref})`, ok: true });
     revalidatePath("/", "layout");
     return { ok: true, message: `Banco "${name}" excluído no Supabase. Não há como desfazer.` };
   } catch (err) {
-    await addLog(session.tenantId, { user: session.email, action: "excluir_projeto", target: `${name} (${ref})`, ok: false, detail: String(err) });
+    await addLog(a.tenant, { user: actor(a), action: "excluir_projeto", target: `${name} (${ref})`, ok: false, detail: String(err) });
     return fail(err);
   }
 }
@@ -290,27 +308,27 @@ export type KeepAliveResult = ActionResult<{ enabled: boolean; ok?: boolean; las
 
 /** Liga/desliga o keep-alive de um projeto. Ao ligar, já faz o primeiro ping. */
 export async function setKeepAliveAction(orgSlug: string, ref: string, name: string, enabled: boolean): Promise<KeepAliveResult> {
-  const session = await requireSession();
+  const a = await gate(orgSlug, ref, "write");
+  if (denied(a)) return a;
   try {
-    await connectionOrThrow(session.tenantId, orgSlug);
-    const existing = (await listKeepAlive(session.tenantId)).find((k) => k.ref === ref);
+    const existing = (await listKeepAlive(a.tenant)).find((k) => k.ref === ref);
     await putKeepAlive({
       ...existing,
-      tenantId: session.tenantId,
+      tenantId: a.tenant,
       ref,
       orgSlug,
       name,
       enabled,
       enabledAt: enabled ? new Date().toISOString() : (existing?.enabledAt ?? new Date().toISOString()),
-      enabledBy: session.email,
+      enabledBy: a.session.email,
     });
-    await addLog(session.tenantId, { user: session.email, action: enabled ? "ligar_keepalive" : "desligar_keepalive", target: `${name} (${ref})`, ok: true });
+    await addLog(a.tenant, { user: actor(a), action: enabled ? "ligar_keepalive" : "desligar_keepalive", target: `${name} (${ref})`, ok: true });
 
     if (!enabled) {
       revalidatePath("/", "layout");
       return { ok: true, message: `Keep-alive de "${name}" desligado. O Supabase pode pausar após 7 dias sem uso.`, data: { enabled } };
     }
-    const ping = await pingProject({ tenantId: session.tenantId, orgSlug, ref });
+    const ping = await pingProject({ tenantId: a.tenant, orgSlug, ref });
     revalidatePath("/", "layout");
     return ping.ok
       ? { ok: true, message: `"${name}" fica ativo: primeiro ping feito agora, os próximos são diários.`, data: { enabled, ok: true, lastPingAt: new Date().toISOString() } }
@@ -326,12 +344,12 @@ export async function pingNowAction(
   ref: string,
   name: string,
 ): Promise<ActionResult<{ lastPingAt?: string; lastManualPingAt?: string; ok?: boolean; error?: string; availableAt?: number }>> {
-  const session = await requireSession();
-  const rl = await rateLimit(session.tenantId, "ping", 20, 60);
+  const a = await gate(orgSlug, ref, "write");
+  if (denied(a)) return a;
+  const rl = await rateLimit(a.session.tenantId, "ping", 20, 60);
   if (!rl.ok) return tooMany(rl.retryAfterSec);
   try {
-    await connectionOrThrow(session.tenantId, orgSlug);
-    const existing = (await listKeepAlive(session.tenantId)).find((k) => k.ref === ref);
+    const existing = (await listKeepAlive(a.tenant)).find((k) => k.ref === ref);
     const availableAt = manualPingAvailableAt(existing?.lastManualPingAt);
     if (availableAt > Date.now()) {
       const mins = Math.ceil((availableAt - Date.now()) / 60000);
@@ -340,19 +358,19 @@ export async function pingNowAction(
     const now = new Date().toISOString();
     // grava o horário antes de pingar: cliques repetidos não passam do cooldown
     await putKeepAlive({
-      tenantId: session.tenantId,
+      tenantId: a.tenant,
       ref,
       orgSlug,
       name,
       enabled: existing?.enabled ?? false,
       enabledAt: existing?.enabledAt ?? now,
-      enabledBy: existing?.enabledBy ?? session.email,
+      enabledBy: existing?.enabledBy ?? a.session.email,
       lastPingAt: existing?.lastPingAt,
       lastOk: existing?.lastOk,
       lastError: existing?.lastError,
       lastManualPingAt: now,
     });
-    const ping = await pingProject({ tenantId: session.tenantId, orgSlug, ref });
+    const ping = await pingProject({ tenantId: a.tenant, orgSlug, ref });
     revalidatePath("/", "layout");
     return ping.ok
       ? { ok: true, message: `Ping feito em "${name}". A contagem de 7 dias recomeçou agora.`, data: { ok: true, lastPingAt: now, lastManualPingAt: now } }
@@ -391,11 +409,15 @@ export async function enableKeepAliveForAllAction(): Promise<ActionResult> {
 
 // ---------- conexão / senha ----------
 
-export async function revealPasswordAction(ref: string): Promise<ActionResult<{ password: string | null; source?: string; updatedAt?: string }>> {
-  const session = await requireSession();
-  const stored = await getPassword(session.tenantId, ref);
+export async function revealPasswordAction(
+  orgSlug: string,
+  ref: string,
+): Promise<ActionResult<{ password: string | null; source?: string; updatedAt?: string }>> {
+  const a = await gate(orgSlug, ref, "secrets");
+  if (denied(a)) return a;
+  const stored = await getPassword(a.tenant, ref);
   if (!stored) return { ok: true, message: "", data: { password: null } };
-  await addLog(session.tenantId, { user: session.email, action: "ver_senha", target: ref, ok: true });
+  await addLog(a.tenant, { user: actor(a), action: "ver_senha", target: ref, ok: true });
   return {
     ok: true,
     message: "",
@@ -404,26 +426,28 @@ export async function revealPasswordAction(ref: string): Promise<ActionResult<{ 
 }
 
 export async function resetPasswordAction(orgSlug: string, ref: string, newPassword?: string): Promise<ActionResult<{ password: string }>> {
-  const session = await requireSession();
+  const a = await gate(orgSlug, ref, "manage");
+  if (denied(a)) return a;
   const password = newPassword?.trim() || generatePassword();
   if (password.length < 12) return { ok: false, message: "A senha precisa ter pelo menos 12 caracteres." };
   try {
-    await clientFor(await connectionOrThrow(session.tenantId, orgSlug)).updatePassword(ref, password);
-    await putPassword(session.tenantId, ref, encrypt(password), "reset");
-    await addLog(session.tenantId, { user: session.email, action: "redefinir_senha", target: ref, ok: true });
+    await clientFor(a.conn).updatePassword(ref, password);
+    await putPassword(a.tenant, ref, encrypt(password), "reset");
+    await addLog(a.tenant, { user: actor(a), action: "redefinir_senha", target: ref, ok: true });
     return { ok: true, message: "Senha redefinida. Atualize as aplicações que usam a senha antiga.", data: { password } };
   } catch (err) {
-    await addLog(session.tenantId, { user: session.email, action: "redefinir_senha", target: ref, ok: false, detail: String(err) });
+    await addLog(a.tenant, { user: actor(a), action: "redefinir_senha", target: ref, ok: false, detail: String(err) });
     return fail(err);
   }
 }
 
 export async function saveKnownPasswordAction(orgSlug: string, ref: string, password: string): Promise<ActionResult> {
-  const session = await requireSession();
+  const a = await gate(orgSlug, ref, "secrets");
+  if (denied(a)) return a;
   if (!password.trim()) return { ok: false, message: "Digite a senha." };
   try {
     // Valida contra o banco antes de guardar (prevenção de erro).
-    const conn = await connectionOrThrow(session.tenantId, orgSlug);
+    const conn = a.conn;
     const pooler = (await clientFor(conn).getPooler(ref)).find((p) => p.database_type === "PRIMARY");
     if (pooler) {
       {
@@ -447,8 +471,8 @@ export async function saveKnownPasswordAction(orgSlug: string, ref: string, pass
         }
       }
     }
-    await putPassword(session.tenantId, ref, encrypt(password.trim()), "manual");
-    await addLog(session.tenantId, { user: session.email, action: "salvar_senha", target: ref, ok: true });
+    await putPassword(a.tenant, ref, encrypt(password.trim()), "manual");
+    await addLog(a.tenant, { user: actor(a), action: "salvar_senha", target: ref, ok: true });
     return { ok: true, message: "Senha verificada e guardada (criptografada)." };
   } catch (err) {
     return fail(err);
@@ -456,10 +480,11 @@ export async function saveKnownPasswordAction(orgSlug: string, ref: string, pass
 }
 
 export async function revealApiKeysAction(orgSlug: string, ref: string): Promise<ActionResult<{ name: string; type: string; key: string }[]>> {
-  const session = await requireSession();
+  const a = await gate(orgSlug, ref, "secrets");
+  if (denied(a)) return a;
   try {
-    const keys = await clientFor(await connectionOrThrow(session.tenantId, orgSlug)).getApiKeys(ref);
-    await addLog(session.tenantId, { user: session.email, action: "ver_chaves_api", target: ref, ok: true });
+    const keys = await clientFor(a.conn).getApiKeys(ref);
+    await addLog(a.tenant, { user: actor(a), action: "ver_chaves_api", target: ref, ok: true });
     return {
       ok: true,
       message: "",
@@ -477,22 +502,24 @@ export async function revealApiKeysAction(orgSlug: string, ref: string): Promise
 export type QueryResult = { columns: string[]; rows: Record<string, unknown>[]; ms: number };
 
 export async function runSqlAction(orgSlug: string, ref: string, sql: string, readOnly: boolean): Promise<ActionResult<QueryResult>> {
-  const session = await requireSession();
+  // escrita exige Editor; leitura, qualquer papel
+  const a = await gate(orgSlug, ref, readOnly ? "view" : "write");
+  if (denied(a)) return a;
   if (!sql.trim()) return { ok: false, message: "Escreva um comando SQL." };
-  const rl = await rateLimit(session.tenantId, "sql", 60, 60);
+  const rl = await rateLimit(a.session.tenantId, "sql", 60, 60);
   if (!rl.ok) return tooMany(rl.retryAfterSec);
   const started = Date.now();
   try {
-    const rows = (await clientFor(await connectionOrThrow(session.tenantId, orgSlug)).query(ref, sql, { readOnly })) ?? [];
+    const rows = (await clientFor(a.conn).query(ref, sql, { readOnly })) ?? [];
     const ms = Date.now() - started;
     if (!readOnly) {
-      await addLog(session.tenantId, { user: session.email, action: "executar_sql", target: ref, ok: true, detail: sql.slice(0, 500) });
+      await addLog(a.tenant, { user: actor(a), action: "executar_sql", target: ref, ok: true, detail: sql.slice(0, 500) });
     }
     const columns = rows.length ? Object.keys(rows[0]) : [];
     return { ok: true, message: `${rows.length} linha(s) em ${ms} ms.`, data: { columns, rows: rows.slice(0, 1000), ms } };
   } catch (err) {
     if (!readOnly) {
-      await addLog(session.tenantId, { user: session.email, action: "executar_sql", target: ref, ok: false, detail: `${sql.slice(0, 300)} → ${String(err)}` });
+      await addLog(a.tenant, { user: actor(a), action: "executar_sql", target: ref, ok: false, detail: `${sql.slice(0, 300)} → ${String(err)}` });
     }
     return fail(err);
   }
@@ -509,13 +536,14 @@ export async function tableRowsAction(
   table: string,
   page: number,
 ): Promise<ActionResult<QueryResult & { columnTypes: Record<string, string> }>> {
-  const session = await requireSession();
-  const rl = await rateLimit(session.tenantId, "tables", 120, 60);
+  const a = await gate(orgSlug, ref, "view");
+  if (denied(a)) return a;
+  const rl = await rateLimit(a.session.tenantId, "tables", 120, 60);
   if (!rl.ok) return tooMany(rl.retryAfterSec);
   const pageSize = 50;
   const started = Date.now();
   try {
-    const api = clientFor(await connectionOrThrow(session.tenantId, orgSlug));
+    const api = clientFor(a.conn);
     const cols = await api.query<{ column_name: string; data_type: string }>(
       ref,
       "select column_name, data_type from information_schema.columns where table_schema = $1 and table_name = $2 order by ordinal_position",
@@ -599,16 +627,18 @@ export async function generateDescriptionAction(
   ref: string,
   opts: { includeSamples: boolean; depth: "normal" | "ampla" },
 ): Promise<ActionResult<DescriptionDraft & { remaining: number }>> {
-  const session = await requireSession();
+  const a = await gate(orgSlug, ref, "write");
+  if (denied(a)) return a;
+  const session = a.session;
   if (!env.aiEnabled) return { ok: false, message: "A IA está desligada nesta instalação (defina ANTHROPIC_API_KEY)." };
   try {
-    const conn = await connectionOrThrow(session.tenantId, orgSlug);
+    const conn = a.conn;
     // leitura do esquema: sem IA, sem token
     const [project, snap, previous, gen] = await Promise.all([
       clientFor(conn).getProject(ref),
       schemaSnapshot(conn, ref),
-      getDescription(session.tenantId, ref),
-      getDescribeCount(session.tenantId, ref),
+      getDescription(a.tenant, ref),
+      getDescribeCount(a.tenant, ref),
     ]);
     if (previous?.fingerprint && previous.fingerprint === snap.fingerprint)
       return { ok: false, message: "Nenhuma tabela ou coluna mudou desde a última descrição. Se quiser ajustar o texto, use Editar." };
@@ -631,11 +661,11 @@ export async function generateDescriptionAction(
           : tooMany(rl.retryAfterSec);
     }
 
-    await putDescribeCount(session.tenantId, ref, snap.fingerprint, used + 1);
+    await putDescribeCount(a.tenant, ref, snap.fingerprint, used + 1);
     const diff = previous ? diffSchema(previous.tables, snap.tables) : undefined;
     const draft = await generateDraft(conn, project, snap, { ...opts, previous, diff });
-    await addLog(session.tenantId, {
-      user: session.email,
+    await addLog(a.tenant, {
+      user: actor(a),
       action: "descrever_banco",
       target: `${project.name} (${ref})`,
       ok: true,
@@ -643,35 +673,36 @@ export async function generateDescriptionAction(
     });
     return { ok: true, message: "Rascunho pronto. Revise antes de salvar.", data: { ...draft, remaining: DRAFTS_PER_SCHEMA - used - 1 } };
   } catch (err) {
-    await addLog(session.tenantId, { user: session.email, action: "descrever_banco", target: ref, ok: false, detail: String(err) });
+    await addLog(a.tenant, { user: actor(a), action: "descrever_banco", target: ref, ok: false, detail: String(err) });
     return fail(err);
   }
 }
 
 /** Salva a descrição revisada (texto vazio apaga) e registra o esquema atual. */
 export async function saveDescriptionAction(orgSlug: string, ref: string, text: string, source: "ai" | "manual"): Promise<ActionResult> {
-  const session = await requireSession();
+  const a = await gate(orgSlug, ref, "write");
+  if (denied(a)) return a;
   const clean = text.replace(/\s+\n/g, "\n").trim();
   if (clean.length > 2000) return { ok: false, message: "Use até 2000 caracteres." };
   try {
     if (!clean) {
-      await deleteDescription(session.tenantId, ref);
+      await deleteDescription(a.tenant, ref);
       revalidatePath(`/p/${orgSlug}/${ref}`);
       return { ok: true, message: "Descrição removida." };
     }
-    const conn = await connectionOrThrow(session.tenantId, orgSlug);
+    const conn = a.conn;
     // banco pausado: salva sem impressão digital (o aviso de mudança volta quando ele estiver no ar)
     const snap = await schemaSnapshot(conn, ref).catch(() => null);
-    await putDescription(session.tenantId, {
+    await putDescription(a.tenant, {
       ref,
       text: clean,
       fingerprint: snap?.fingerprint,
       tables: snap?.tables,
       source,
       updatedAt: new Date().toISOString(),
-      updatedBy: session.email,
+      updatedBy: a.session.email,
     });
-    await addLog(session.tenantId, { user: session.email, action: "salvar_descricao", target: ref, ok: true });
+    await addLog(a.tenant, { user: actor(a), action: "salvar_descricao", target: ref, ok: true });
     revalidatePath(`/p/${orgSlug}/${ref}`);
     return { ok: true, message: "Descrição salva. O MCP já usa este texto." };
   } catch (err) {
