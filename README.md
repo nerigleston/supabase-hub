@@ -113,6 +113,7 @@ Coloque o nome em `DYNAMO_TABLE`.
 | `T#<dono>`    | `SHARE#<ref>#<email>`    | Membro de um banco compartilhado (pendente ou ativo, papel, ações do MCP) |
 | `T#<convidado>` | `SHARED#<ref>`         | Banco que outra conta compartilhou com este usuário |
 | `INVITE#<hash>` | `META`                 | Convite (token só como hash, expira em 7 dias) |
+| `CODE#<finalidade>#<email>` | `META`     | Código de cadastro ou troca de senha (só o hash, expira em 15 min) |
 | `USER#<email>` | `META`                  | Índice e-mail -> conta (só se convida quem já tem conta) |
 | `OAUTHCLIENT#<id>` / `OAUTHCODE#…` / `OAUTHTOK#<hash>` / `OAUTHREF#<hash>` | `META` | Servidor OAuth do MCP (tokens guardados só como hash) |
 
@@ -181,7 +182,7 @@ npm run build && npm start
 | `ACCESS_REQUEST_URL`           |             | Com o cadastro fechado, destino do botão "Quero ser avisado" (`mailto:` ou URL) |
 | `MCP_URL`                      |             | URL pública do servidor MCP mostrada na tela /mcp e na LP                  |
 
-#### E-mails (opcional): convites e códigos do Cognito pelo Resend
+#### E-mails pelo Resend: convites, confirmação de cadastro e troca de senha
 
 | Variável                       | Descrição                                                                 |
 | ------------------------------ | ------------------------------------------------------------------------- |
@@ -190,7 +191,10 @@ npm run build && npm start
 
 Sem `RESEND_API_KEY`, o convite é criado mesmo assim e o link aparece na tela para você enviar.
 
-Os códigos de cadastro e de troca de senha são do Cognito. Para eles também saírem pelo Resend (em vez do remetente padrão da AWS, limitado a 50 por dia), instale o gatilho Custom Email Sender com `infra/cognito-email-sender/deploy.sh`: ele cria uma chave KMS, uma Lambda e liga o gatilho no User Pool preservando o resto da configuração (`ROLLBACK=1` desfaz). Rode só depois de verificar o domínio no Resend.
+Os códigos de cadastro e de troca de senha também são do BaseHub: o app gera o código (só o hash fica guardado, vale 15 minutos, 5 tentativas, 1 envio por minuto), envia pelo Resend e, com o código certo, confirma a conta ou define a senha no Cognito pelas APIs de admin. Para isso:
+
+- a role/usuário AWS do app precisa de `cognito-idp:AdminGetUser`, `AdminConfirmSignUp`, `AdminSetUserPassword` e `AdminUpdateUserAttributes` no User Pool;
+- no User Pool, desligue o envio próprio do Cognito: em **Sign-up experience → Attribute verification**, deixe sem verificação automática (`AutoVerifiedAttributes` vazio). Assim o Cognito não manda e-mail nenhum e não há custo extra (nada de KMS ou Lambda).
 
 #### IA (opcional): minichat de ajuda e descrição dos bancos
 
