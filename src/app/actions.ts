@@ -176,11 +176,22 @@ export async function createProjectAction(
   if (!rl.ok) return tooMany(rl.retryAfterSec);
 
   try {
+    // confere as vagas ANTES de chamar o Supabase (mesma regra dele: por pessoa dona/admin)
+    const { accounts } = await loadHub(session.tenantId);
     if (orgSlug === "auto") {
-      const { accounts } = await loadHub(session.tenantId);
       const target = accounts.find((a) => !a.error && a.status === "ok" && (a.freeSlots === null || a.freeSlots > 0));
-      if (!target) return { ok: false, message: "Todos os e-mails já estão com 2 bancos grátis ligados. Pause um banco ou conecte outra conta." };
+      if (!target)
+        return { ok: false, message: "Nenhuma organização tem vaga para banco grátis: os donos e admins já têm 2 ligados. Pause um banco ou use uma organização paga." };
       orgSlug = target.orgSlug;
+    } else {
+      const chosen = accounts.find((a) => a.orgSlug === orgSlug);
+      if (chosen && chosen.freeSlots === 0)
+        return {
+          ok: false,
+          message: chosen.blockedBy?.length
+            ? `Sem vaga em "${chosen.name}": ${chosen.blockedBy.join(", ")} já ${chosen.blockedBy.length > 1 ? "têm" : "tem"} 2 bancos grátis ligados, somando todas as organizações em que é dono ou admin. Pause um banco dessa pessoa ou escolha outra organização.`
+            : `Sem vaga em "${chosen.name}": o e-mail já tem 2 bancos grátis ligados. Pause um banco ou escolha outra organização.`,
+        };
     }
     const conn = await connectionOrThrow(session.tenantId, orgSlug);
     const project: Project = await clientFor(conn).createProject({ name, region, dbPass: password });

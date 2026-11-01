@@ -61,12 +61,18 @@ export default async function OrgPage({ params }: PageProps<"/contas/[org]">) {
         <Stat label="Plano" value={plan} hint={free ? "Grátis: usa as vagas do e-mail" : "Pago: sem limite de bancos grátis"} />
         <Stat label="Bancos" value={rows.length} hint={`${kept} com Manter ativo`} />
         <Stat label="Pausados" value={paused} tone={paused ? "paused" : undefined} hint={paused ? "Reative na tabela abaixo" : "Nenhum pausado"} />
-        {free && loginSummary ? (
+        {free && account.freeSlots !== null ? (
           <Stat
-            label="Vagas grátis do e-mail"
-            value={loginSummary.freeSlots}
-            tone={loginSummary.freeSlots ? "ok" : "error"}
-            hint={`${loginSummary.activeFree} de ${FREE_PLAN_ACTIVE_LIMIT} ligados no e-mail${siblings ? `, somando ${siblings} outra(s) org(s)` : ""}`}
+            label="Vagas para banco grátis"
+            value={account.freeSlots}
+            tone={account.freeSlots ? "ok" : "error"}
+            hint={
+              account.blockedBy?.length
+                ? `Bloqueada: ${account.blockedBy.join(", ")} já ${account.blockedBy.length > 1 ? "têm" : "tem"} ${FREE_PLAN_ACTIVE_LIMIT} ligados`
+                : loginSummary
+                  ? `${loginSummary.activeFree} de ${FREE_PLAN_ACTIVE_LIMIT} ligados no e-mail${siblings ? `, somando ${siblings} outra(s) org(s)` : ""}`
+                  : "Conta pelos donos e admins da organização"
+            }
           />
         ) : (
           <Stat label="Vagas grátis" value="∞" hint="Org paga" />

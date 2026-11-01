@@ -201,6 +201,8 @@ type OrgInfo = {
   /** vagas grátis livres do E-MAIL (null = org paga, sem teto) */
   loginFree: number | null;
   hasFreeSlot: boolean;
+  /** donos/admins no limite que impedem criar aqui */
+  blockedBy?: string[];
 };
 
 /** Mapa de todas as orgs conectadas, com bancos e vaga livre (vaga calculada por e-mail). */
@@ -221,6 +223,7 @@ async function mapOrgs(tenant: string): Promise<OrgInfo[]> {
       loginActive: summary?.activeFree ?? a.activeCount,
       loginFree: paid ? null : a.freeSlots,
       hasFreeSlot: !a.error && (paid || (a.freeSlots ?? 0) > 0),
+      blockedBy: a.blockedBy,
     };
   });
 }
@@ -324,7 +327,7 @@ export async function executeTool(tenant: string, email: string, name: string, a
         const key = o.login ?? `(e-mail não identificado: ${o.slug})`;
         groups.set(key, [...(groups.get(key) ?? []), o]);
       }
-      const out = [`Regra do Supabase Free: cada E-MAIL pode ter ${FREE_PLAN_ACTIVE_LIMIT} bancos grátis ligados, somando todas as orgs Free dele. Org paga não conta.`];
+      const out = [`Regra do Supabase Free: cada PESSOA (e-mail) dona ou admin pode ter ${FREE_PLAN_ACTIVE_LIMIT} bancos grátis ligados, somando todas as orgs Free em que tem esse papel; uma org só tem vaga se todos os donos/admins dela estiverem abaixo do limite. Org paga não conta.`];
       for (const [login, list] of groups) {
         const free = list.find((o) => !o.paid && o.reachable);
         const header = free
@@ -333,7 +336,7 @@ export async function executeTool(tenant: string, email: string, name: string, a
         out.push(`\n${header}`);
         for (const o of list) {
           const status = !o.reachable ? "inalcançável (reconecte em Contas)" : o.paid ? "org paga, sem limite" : "org grátis";
-          out.push(`  ${o.name} (${o.slug}) · ${status} · ${o.active} ligado(s) nesta org`);
+          out.push(`  ${o.name} (${o.slug}) · ${status} · ${o.active} ligado(s) nesta org${o.blockedBy?.length ? ` · SEM VAGA: ${o.blockedBy.join(", ")} no limite` : ""}`);
           out.push(o.projects.length ? o.projects.map((p) => `    · ${p.name} (${p.ref}) ${p.status}`).join("\n") : "    · (nenhum banco)");
         }
       }

@@ -42,7 +42,10 @@ export function CreateOrgButton({ login }: { login: string }) {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Criar organização</DialogTitle>
-            <DialogDescription>Uma organização nova em {login}, já conectada ao Hub.</DialogDescription>
+            <DialogDescription>
+              Uma organização nova em {login}, já conectada ao BaseHub. Ela não libera vaga para banco grátis: o limite de 2 bancos ligados é da
+              pessoa, somando todas as organizações em que ela é dona ou admin.
+            </DialogDescription>
           </DialogHeader>
           <form
             onSubmit={(e) => {

@@ -75,6 +75,12 @@ export function AccountCard({ account }: { account: AccountView }) {
       </dl>
 
       {account.error && <p className="text-sm text-rose-700 dark:text-rose-300">{account.error}</p>}
+      {!account.error && account.blockedBy?.length ? (
+        <p className="rounded-md bg-amber-50 px-2.5 py-1.5 text-xs text-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
+          Sem vaga para banco grátis: {account.blockedBy.join(", ")} já {account.blockedBy.length > 1 ? "têm" : "tem"} 2 ligados (somando as organizações
+          em que {account.blockedBy.length > 1 ? "são donos ou admins" : "é dono ou admin"}).
+        </p>
+      ) : null}
 
       <Link
         href={`/contas/${account.orgSlug}`}
