@@ -1,4 +1,5 @@
-import { requireSession } from "@/lib/session";
+import { resolveAccess } from "@/lib/access";
+import { can } from "@/lib/roles";
 import { type ConnEndpoints, type ConnString, ConnectionPanel } from "@/components/connection-panel";
 import { getPassword } from "@/lib/db";
 import { loadProject } from "@/lib/hub";
@@ -6,14 +7,15 @@ import { clientFor } from "@/lib/supabase-api";
 
 export default async function ConexaoPage({ params }: PageProps<"/p/[org]/[ref]">) {
   const { org, ref } = await params;
-  const session = await requireSession();
-  const result = await loadProject(session.tenantId, org, ref);
+  const access = await resolveAccess(org, ref);
+  if (!access) return null; // o layout já explica
+  const result = await loadProject(access.tenant, org, ref);
   if ("error" in result) return null; // o layout já mostra o erro
 
   const online = result.project.status === "ACTIVE_HEALTHY" || result.project.status === "ACTIVE_UNHEALTHY";
   const [poolers, stored] = await Promise.all([
     online ? clientFor(result.conn).getPooler(ref).catch(() => []) : Promise.resolve([]),
-    getPassword(session.tenantId, ref),
+    getPassword(access.tenant, ref),
   ]);
 
   const strings: ConnString[] = [];
@@ -58,6 +60,8 @@ export default async function ConexaoPage({ params }: PageProps<"/p/[org]/[ref]"
       endpoints={endpoints}
       passwordInfo={stored ? { source: stored.source, updatedAt: stored.updatedAt } : null}
       online={online}
+      canSecrets={can.secrets(access.role)}
+      canReset={can.manage(access.role)}
     />
   );
 }

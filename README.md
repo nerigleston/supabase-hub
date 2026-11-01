@@ -39,7 +39,8 @@ Painel para gerenciar **várias contas e organizações do Supabase em um lugar 
 - **Descrição de cada banco**: escrita à mão ou gerada por IA a partir do esquema (opcionalmente com 2 linhas de exemplo por tabela, colunas sensíveis ocultas). O usuário revisa antes de salvar, e o painel avisa quando tabelas ou colunas mudam. O MCP usa a descrição para saber qual banco é qual.
 - **Minichat de ajuda** (IA): explica o sistema passo a passo, com guardrails de entrada e saída (segredos mascarados) e limites de uso.
 - **MCP na nuvem** (plano Business): conecta o BaseHub ao Claude, ChatGPT, Cursor, Claude Code e Codex. O login é pelo próprio BaseHub (OAuth 2.1). Você liga cada ação no padrão ou por banco (padrão, personalizado ou bloqueado), e SQL de escrita é uma permissão à parte.
-- **Atividade**: log de auditoria de quem fez o quê (expira sozinho).
+- **Compartilhar bancos** (Pro e Business): convide outras contas do BaseHub por e-mail para um banco, com papel Leitura, Editor ou Admin. O convite chega pelo Resend, vale 7 dias e é aceito pelo link. Dono e Admins mudam papéis, revogam acessos e escolhem, por pessoa, as ações que ela pode usar no MCP. Tudo fica no histórico do banco.
+- **Atividade**: log de auditoria de quem fez o quê, inclusive convidados (expira sozinho).
 - **Segurança**: tokens do Supabase criptografados (AES-256-GCM), CSP com nonce por requisição, rate limit por usuário, sessão em cookie `httpOnly`.
 
 ## Stack
@@ -109,6 +110,10 @@ Coloque o nome em `DYNAMO_TABLE`.
 | `T#<tenant>`  | `DESCGEN#<ref>`          | Rascunhos de IA por versão do esquema (limite de custo) |
 | `T#<tenant>`  | `MCPCFG`                 | Ações do MCP (padrão e por banco)             |
 | `T#<tenant>`  | `MCPREFIDX`              | Cache ref -> organização (expira)             |
+| `T#<dono>`    | `SHARE#<ref>#<email>`    | Membro de um banco compartilhado (pendente ou ativo, papel, ações do MCP) |
+| `T#<convidado>` | `SHARED#<ref>`         | Banco que outra conta compartilhou com este usuário |
+| `INVITE#<hash>` | `META`                 | Convite (token só como hash, expira em 7 dias) |
+| `USER#<email>` | `META`                  | Índice e-mail -> conta (só se convida quem já tem conta) |
 | `OAUTHCLIENT#<id>` / `OAUTHCODE#…` / `OAUTHTOK#<hash>` / `OAUTHREF#<hash>` | `META` | Servidor OAuth do MCP (tokens guardados só como hash) |
 
 Hoje `tenant` = `sub` do usuário no Cognito. Tokens e senhas são gravados criptografados.
@@ -175,6 +180,17 @@ npm run build && npm start
 | `SIGNUP_ENABLED`               |             | `true` abre o cadastro público. **Fechado por padrão**: abra para criar a sua conta e feche depois, se quiser |
 | `ACCESS_REQUEST_URL`           |             | Com o cadastro fechado, destino do botão "Quero ser avisado" (`mailto:` ou URL) |
 | `MCP_URL`                      |             | URL pública do servidor MCP mostrada na tela /mcp e na LP                  |
+
+#### E-mails (opcional): convites e códigos do Cognito pelo Resend
+
+| Variável                       | Descrição                                                                 |
+| ------------------------------ | ------------------------------------------------------------------------- |
+| `RESEND_API_KEY`               | Chave do [Resend](https://resend.com) (pode ser só de envio)             |
+| `EMAIL_FROM`                   | Remetente, ex.: `BaseHub <convites@seudominio.com>`. O domínio precisa estar verificado no Resend |
+
+Sem `RESEND_API_KEY`, o convite é criado mesmo assim e o link aparece na tela para você enviar.
+
+Os códigos de cadastro e de troca de senha são do Cognito. Para eles também saírem pelo Resend (em vez do remetente padrão da AWS, limitado a 50 por dia), instale o gatilho Custom Email Sender com `infra/cognito-email-sender/deploy.sh`: ele cria uma chave KMS, uma Lambda e liga o gatilho no User Pool preservando o resto da configuração (`ROLLBACK=1` desfaz). Rode só depois de verificar o domínio no Resend.
 
 #### IA (opcional): minichat de ajuda e descrição dos bancos
 

@@ -12,12 +12,15 @@ export async function ProjectDescriptionSection({
   org,
   projectRef,
   online,
+  canEdit = true,
 }: {
   tenant: string;
   conn: Connection;
   org: string;
   projectRef: string;
   online: boolean;
+  /** papel Leitura só lê a descrição */
+  canEdit?: boolean;
 }) {
   const desc = await getDescription(tenant, projectRef);
   let stale: StaleInfo = null;
@@ -36,6 +39,7 @@ export async function ProjectDescriptionSection({
       stale={stale}
       aiEnabled={env.aiEnabled}
       online={online}
+      canEdit={canEdit}
     />
   );
 }

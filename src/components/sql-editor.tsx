@@ -37,7 +37,20 @@ function riskOf(sql: string): string | null {
 
 type HistoryItem = { sql: string; at: number; ok: boolean };
 
-export function SqlEditor({ org, projectRef, projectName, initial }: { org: string; projectRef: string; projectName: string; initial?: string }) {
+export function SqlEditor({
+  org,
+  projectRef,
+  projectName,
+  initial,
+  canWrite = true,
+}: {
+  org: string;
+  projectRef: string;
+  projectName: string;
+  initial?: string;
+  /** papel Leitura: modo somente leitura travado */
+  canWrite?: boolean;
+}) {
   const [sql, setSql] = useState(initial ?? "select now();");
   const [readOnly, setReadOnly] = useState(true);
   const [result, setResult] = useState<QueryResult | null>(null);
@@ -68,7 +81,7 @@ export function SqlEditor({ org, projectRef, projectName, initial }: { org: stri
     start(async () => {
       setError(null);
       setInfo(null);
-      const r = await runSqlAction(org, projectRef, sql, readOnly);
+      const r = await runSqlAction(org, projectRef, sql, readOnly || !canWrite);
       remember({ sql, at: Date.now(), ok: r.ok });
       if (!r.ok) {
         setResult(null);
@@ -94,10 +107,10 @@ export function SqlEditor({ org, projectRef, projectName, initial }: { org: stri
         <Card className="overflow-hidden">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-200 px-3 py-2 dark:border-zinc-800">
             <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={readOnly} onChange={(e) => setReadOnly(e.target.checked)} />
+              <input type="checkbox" checked={readOnly || !canWrite} disabled={!canWrite} onChange={(e) => setReadOnly(e.target.checked)} />
               <span>
                 Somente leitura{" "}
-                <span className="text-xs text-zinc-500">{readOnly ? "(nada é alterado no banco)" : "(desligado: comandos alteram o banco)"}</span>
+                <span className="text-xs text-zinc-500">{!canWrite ? "(seu papel neste banco é Leitura)" : readOnly ? "(nada é alterado no banco)" : "(desligado: comandos alteram o banco)"}</span>
               </span>
             </label>
             <div className="flex items-center gap-2">

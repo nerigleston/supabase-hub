@@ -142,6 +142,16 @@ Projetos grátis são pausados pelo Supabase depois de cerca de 7 dias sem ativi
 - As consultas executadas ficam no histórico do editor (só neste navegador).
 - Todo SQL de escrita fica registrado em Atividade.
 
+## Compartilhar um banco com outra pessoa (planos Pro e Business)
+- Só dá para convidar quem já tem conta no BaseHub. Se a pessoa não tiver, ela cria a conta antes.
+- Na página do banco, aba "Acesso" (aparece para o dono e para Admins): informe o e-mail, escolha o papel e clique em "Enviar convite".
+- Papéis: Leitura (vê o banco e as tabelas e roda SQL só de leitura; não vê senha nem chaves secretas), Editor (tudo da Leitura, mais SQL de escrita, manter ativo, pausar e reativar, e ver senha e chaves) e Admin (tudo do Editor, mais convidar, mudar papéis e revogar acessos). Excluir o banco é só do dono.
+- O convite chega por e-mail e vale 7 dias. A pessoa abre o link, entra com o e-mail convidado e clica em "Aceitar e abrir o banco" (ou Recusar). Se o e-mail não sair, o link aparece na tela para copiar.
+- Na aba Acesso: lista de quem tem acesso (dá para mudar o papel ou Revogar), convites pendentes (Reenviar ou Cancelar) e o "Histórico deste banco", com tudo que as pessoas fizeram nele.
+- MCP: o banco compartilhado aparece no MCP do convidado. Em cada pessoa, "MCP: X de Y ações" abre as ações que ela pode usar pelo assistente, dentro do que o papel permite. Ela ainda pode restringir no MCP dela.
+- Para o convidado: os bancos aparecem em "Compartilhados comigo", na Visão geral, com o selo "Compartilhado por ... · papel". Para sair, use "Sair deste banco" na página do banco.
+- Quem revoga ou cancela faz o acesso sumir na hora (painel e MCP); a pessoa recebe um e-mail avisando.
+
 ## Atividade (/atividade)
 Tudo o que foi feito pelo painel nos últimos 90 dias: quem, o quê, quando e se deu certo (criar, pausar, reativar, excluir, SQL de escrita, troca de senha, conexões, falhas de keep-alive).
 

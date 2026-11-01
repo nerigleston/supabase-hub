@@ -1,7 +1,7 @@
 import { type TableInfo, TableBrowser } from "@/components/table-browser";
 import { Notice } from "@/components/app-ui";
+import { resolveAccess } from "@/lib/access";
 import { loadProject } from "@/lib/hub";
-import { requireSession } from "@/lib/session";
 import { clientFor } from "@/lib/supabase-api";
 
 const TABLES_SQL = `
@@ -19,8 +19,9 @@ order by (n.nspname = 'public') desc, n.nspname, c.relname`;
 
 export default async function TabelasPage({ params }: PageProps<"/p/[org]/[ref]/tabelas">) {
   const { org, ref } = await params;
-  const session = await requireSession();
-  const result = await loadProject(session.tenantId, org, ref);
+  const access = await resolveAccess(org, ref);
+  if (!access) return null; // o layout já explica
+  const result = await loadProject(access.tenant, org, ref);
   if ("error" in result) return null;
   if (result.project.status !== "ACTIVE_HEALTHY" && result.project.status !== "ACTIVE_UNHEALTHY") return null;
 

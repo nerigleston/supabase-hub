@@ -21,6 +21,8 @@ export function ConnectionPanel({
   endpoints,
   passwordInfo,
   online,
+  canSecrets = true,
+  canReset = true,
 }: {
   org: string;
   projectRef: string;
@@ -29,6 +31,10 @@ export function ConnectionPanel({
   endpoints: ConnEndpoints | null;
   passwordInfo: { source: string; updatedAt: string } | null;
   online: boolean;
+  /** Editor ou acima: ver senha e chaves */
+  canSecrets?: boolean;
+  /** Admin ou dono: redefinir a senha */
+  canReset?: boolean;
 }) {
   const [password, setPassword] = useState<string | null>(null);
   const [info, setInfo] = useState(passwordInfo);
@@ -41,7 +47,7 @@ export function ConnectionPanel({
 
   const reveal = () =>
     start(async () => {
-      const r = await revealPasswordAction(projectRef);
+      const r = await revealPasswordAction(org, projectRef);
       if (!r.ok) return toast(false, r.message);
       setPassword(r.data?.password ?? null);
     });
@@ -78,7 +84,7 @@ export function ConnectionPanel({
               Use o pooler (transaction) em serverless e o session/direto em servidores.
             </p>
           </div>
-          {!password && info && (
+          {!password && info && canSecrets && (
             <button onClick={reveal} disabled={pending} className={buttonClass("secondary")}>
               {pending && <Spinner />} Preencher com a senha
             </button>
@@ -98,6 +104,14 @@ export function ConnectionPanel({
         })()}
       </Card>
 
+      {!canSecrets ? (
+        <Card className="flex flex-col gap-2 p-5">
+          <h2 className="font-semibold">Senha do banco</h2>
+          <p className="text-sm text-zinc-500">
+            Seu papel neste banco é Leitura: a senha e as chaves secretas ficam ocultas. Peça o papel de Editor a quem compartilhou, se precisar.
+          </p>
+        </Card>
+      ) : (
       <Card className="flex flex-col gap-4 p-5">
         <div className="flex items-center justify-between gap-2">
           <h2 className="font-semibold">Senha do banco</h2>
@@ -147,6 +161,7 @@ export function ConnectionPanel({
           </form>
         )}
 
+        {canReset && (
         <div className="border-t border-zinc-100 pt-4 dark:border-zinc-800">
           <h3 className="mb-1 text-sm font-medium">Redefinir senha</h3>
           <p className="mb-2 text-xs text-zinc-500">Deixe vazio para gerar uma senha forte de 24 caracteres.</p>
@@ -186,7 +201,9 @@ export function ConnectionPanel({
             />
           </div>
         </div>
+        )}
       </Card>
+      )}
 
       <Card className="flex flex-col gap-4 p-5">
         <h2 className="font-semibold">API</h2>
@@ -205,6 +222,8 @@ export function ConnectionPanel({
           ) : (
             <p className="text-sm text-zinc-500">Nenhuma chave retornada.</p>
           )
+        ) : !canSecrets ? (
+          <p className="text-sm text-zinc-500">As chaves de API ficam ocultas para o papel Leitura.</p>
         ) : (
           <div>
             <button onClick={loadKeys} disabled={pendingKeys || !online} className={buttonClass("secondary")}>

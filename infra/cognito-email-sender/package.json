@@ -1,0 +1,9 @@
+{
+  "name": "basehub-cognito-email-sender",
+  "private": true,
+  "type": "module",
+  "description": "Gatilho Custom Email Sender do Cognito: envia os códigos pelo Resend",
+  "dependencies": {
+    "@aws-crypto/client-node": "^4.2.1"
+  }
+}

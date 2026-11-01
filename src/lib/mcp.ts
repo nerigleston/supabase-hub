@@ -5,6 +5,7 @@ import { randomInt } from "node:crypto";
 import { awsClientConfig } from "./aws";
 import { decrypt, encrypt } from "./crypto";
 import {
+  addLog,
   deleteKeepAlive,
   deletePassword,
   getConnection,
@@ -19,6 +20,8 @@ import { env } from "./env";
 import { loadHub } from "./hub";
 import { hasMcp, orgUsage } from "./plans";
 import { schemaSnapshot } from "./describe";
+import { mcpForMember, ROLE_LABEL } from "./roles";
+import { getSharedWithMe, listSharedWithMe, type SharedWithMe } from "./shares";
 import { COUNTS_AS_ACTIVE, FREE_PLAN_ACTIVE_LIMIT } from "./status";
 import { clientFor, createOrgWithToken, PAT_EXPIRES_AT, type Project } from "./supabase-api";
 
@@ -117,7 +120,7 @@ export class McpError extends Error {
 // ---------- resolução + conferência do banco ----------
 
 type Conn = Awaited<ReturnType<typeof listConnections>>[number];
-type Resolved = { conn: Conn; project: Project };
+type Resolved = { conn: Conn; project: Project; /** banco compartilhado com este usuário (conexão do dono) */ shared?: SharedWithMe };
 
 const REFIDX_KEY = (tenant: string) => ({ pk: `T#${tenant}`, sk: "MCPREFIDX" });
 
@@ -143,7 +146,6 @@ async function resolveProject(tenant: string, ref: string): Promise<Resolved> {
   if (!ref) throw new McpError("Informe o ref do projeto.", 422);
 
   const conns = await listConnections(tenant);
-  if (!conns.length) throw new McpError("Nenhuma conta conectada.", 404);
 
   // tenta primeiro a org que o cache sugere, depois as demais
   const hint = await cachedOrgForRef(tenant, ref);
@@ -164,6 +166,15 @@ async function resolveProject(tenant: string, ref: string): Promise<Resolved> {
       if (hint !== conn.orgSlug) await rememberRefOrg(tenant, ref, conn.orgSlug).catch(() => {});
       return { conn, project };
     }
+  }
+  // Banco compartilhado por outra conta: usa a conexão do dono, conferindo ao vivo também.
+  const sh = await getSharedWithMe(tenant, ref);
+  if (sh) {
+    const conn = await getConnection(sh.ownerTenant, sh.orgSlug);
+    if (!conn) throw new McpError(`O banco "${sh.projectName}" foi compartilhado com você, mas o dono desconectou a conta dele.`, 409);
+    const project = (await clientFor(conn).listProjects()).find((p) => p.ref === ref && p.organization_slug === sh.orgSlug && p.status !== "REMOVED");
+    if (!project) throw new McpError(`O banco "${sh.projectName}" não existe mais na conta do dono.`, 404);
+    return { conn, project, shared: sh };
   }
   // Se alguma conta não respondeu, o ref pode estar lá: não afirme "não existe".
   if (hadUnreachable)
@@ -240,6 +251,29 @@ export async function executeTool(tenant: string, email: string, name: string, a
   const allowedHere = ref ? toolsForDb(cfg, ref) : cfg.globalTools;
   if (!allowedHere.includes(name)) throw new McpError(`Ação "${name}" não está habilitada para este banco.`, 404);
 
+  // Resolve o banco e, se for compartilhado, aplica o que o dono/Admin liberou para esta pessoa.
+  const resolve = async (): Promise<Resolved> => {
+    const r = await resolveProject(tenant, ref);
+    if (r.shared) {
+      const allowed = mcpForMember(r.shared.role, r.shared.mcpTools);
+      if (!allowed.includes(name))
+        throw new McpError(`Quem compartilhou "${r.project.name}" não liberou a ação "${name}" para você neste banco.`, 403);
+      const writing = name === "run_sql" && args.read_only === false;
+      if (writing && !allowed.includes(SQL_WRITE))
+        throw new McpError(`SQL de escrita não foi liberado para você em "${r.project.name}". Só consultas (read_only=true).`, 403);
+      // o dono vê no histórico tudo que um convidado altera ou lê de sensível via MCP
+      if (writing || ["connection_strings", "ping_project", "restore_project", "pause_project"].includes(name))
+        await addLog(r.shared.ownerTenant, {
+          user: `${email} (convidado, ${r.shared.role})`,
+          action: writing ? "executar_sql" : `mcp_${name}`,
+          target: ref,
+          ok: true,
+          detail: writing ? `via MCP: ${String(args.query ?? "").slice(0, 400)}` : "via MCP",
+        }).catch(() => {});
+    }
+    return r;
+  };
+
   switch (name) {
     case "list_projects": {
       const [conns, descs] = await Promise.all([listConnections(tenant), listDescriptions(tenant)]);
@@ -262,6 +296,23 @@ export async function executeTool(tenant: string, email: string, name: string, a
           }),
         )
       ).flat();
+      // bancos compartilhados comigo (lidos com a conexão do dono)
+      const sharedRows = await Promise.all(
+        (await listSharedWithMe(tenant))
+          .filter((sh) => cfg.perDb[sh.ref]?.length !== 0)
+          .map(async (sh) => {
+            try {
+              const conn = await getConnection(sh.ownerTenant, sh.orgSlug);
+              if (!conn) return null;
+              const [p, desc] = await Promise.all([clientFor(conn).getProject(sh.ref), getDescription(sh.ownerTenant, sh.ref)]);
+              const sobre = desc ? `\n  sobre: ${desc.text.replace(/\s+/g, " ").slice(0, 240)}` : "";
+              return `- ${p.name} (${p.ref}) · ${p.status} · ${p.region} · compartilhado por ${sh.ownerEmail} (papel ${ROLE_LABEL[sh.role]})${sobre}`;
+            } catch {
+              return null;
+            }
+          }),
+      );
+      rows.push(...sharedRows.filter((x): x is string => Boolean(x)));
       return rows.length ? rows.join("\n") : "Nenhum banco liberado.";
     }
     case "list_orgs": {
@@ -289,8 +340,8 @@ export async function executeTool(tenant: string, email: string, name: string, a
       return out.join("\n");
     }
     case "get_project": {
-      const { conn, project } = await resolveProject(tenant, ref);
-      const [p, desc] = await Promise.all([clientFor(conn).getProject(ref), getDescription(tenant, ref)]);
+      const { conn, project, shared } = await resolve();
+      const [p, desc] = await Promise.all([clientFor(conn).getProject(ref), getDescription(shared?.ownerTenant ?? tenant, ref)]);
       let sobre = "sobre: (sem descrição; peça ao usuário para descrever o banco no BaseHub)";
       if (desc) {
         // confere se o esquema mudou desde a descrição (sem IA, só o hash das tabelas)
@@ -301,19 +352,19 @@ export async function executeTool(tenant: string, email: string, name: string, a
       return `${p.name} (${p.ref})\norg: ${project.organization_slug}\nestado: ${p.status}\nregião: ${p.region}\nPostgres: ${p.database?.version ?? "?"}\n${sobre}`;
     }
     case "list_tables": {
-      const { conn, project } = await resolveProject(tenant, ref);
+      const { conn, project } = await resolve();
       const rows = await clientFor(conn).query<{ schema: string; name: string; rows: number; size: string; rls: boolean }>(ref, TABLES_SQL, { readOnly: true });
       const body = rows.map((r) => `${r.schema}.${r.name} · ~${r.rows} linhas · ${r.size} · RLS ${r.rls ? "on" : "off"}`).join("\n") || "Sem tabelas.";
       return `Banco: ${project.name} (${ref})\n${body}`;
     }
     case "table_rows": {
-      const { conn } = await resolveProject(tenant, ref);
+      const { conn } = await resolve();
       const page = Math.max(0, Number(args.page ?? 0));
       const rows = await clientFor(conn).query(ref, `select * from ${ident(String(args.schema))}.${ident(String(args.table))} limit 50 offset ${page * 50}`, { readOnly: true });
       return JSON.stringify(rows, null, 2);
     }
     case "run_sql": {
-      const { conn, project } = await resolveProject(tenant, ref);
+      const { conn, project } = await resolve();
       const readOnly = args.read_only !== false;
       // escrita só com a permissão "SQL de escrita" ligada para este banco
       if (!readOnly && !allowedHere.includes(SQL_WRITE))
@@ -326,7 +377,7 @@ export async function executeTool(tenant: string, email: string, name: string, a
       return `${header}\n${JSON.stringify(rows ?? [], null, 2)}`;
     }
     case "connection_strings": {
-      const { conn } = await resolveProject(tenant, ref);
+      const { conn } = await resolve();
       const poolers = await clientFor(conn).getPooler(ref);
       const stored = await import("./db").then((m) => m.getPassword(tenant, ref));
       const pwd = stored ? decrypt(stored.password) : "[YOUR-PASSWORD]";
@@ -339,22 +390,22 @@ export async function executeTool(tenant: string, email: string, name: string, a
       return out.join("\n") || "Sem connection strings.";
     }
     case "ping_project": {
-      const { conn, project } = await resolveProject(tenant, ref);
+      const { conn, project } = await resolve();
       await clientFor(conn).query(ref, "select 1 as keepalive", { readOnly: true });
       return `Ping ok em ${project.name} (${ref}): a contagem recomeçou.`;
     }
     case "restore_project": {
-      const { conn, project } = await resolveProject(tenant, ref);
+      const { conn, project } = await resolve();
       await clientFor(conn).restoreProject(ref);
       return `Reativação de ${project.name} (${ref}) iniciada (leva 2 a 5 minutos).`;
     }
     case "pause_project": {
-      const { conn, project } = await resolveProject(tenant, ref);
+      const { conn, project } = await resolve();
       await clientFor(conn).pauseProject(ref);
       return `Pausando ${project.name} (${ref}).`;
     }
     case "delete_project": {
-      const { conn, project } = await resolveProject(tenant, ref);
+      const { conn, project } = await resolve();
       await clientFor(conn).deleteProject(ref);
       await Promise.all([deletePassword(tenant, ref).catch(() => {}), deleteKeepAlive(tenant, ref).catch(() => {})]);
       return `Banco ${project.name} (${ref}) excluído no Supabase (irreversível).`;

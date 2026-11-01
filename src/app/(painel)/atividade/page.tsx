@@ -28,6 +28,19 @@ const ACTIONS: Record<string, string> = {
   config_mcp: "Ajustou o MCP",
   descrever_banco: "Gerou descrição com IA",
   salvar_descricao: "Salvou a descrição do banco",
+  convidar: "Convidou para um banco",
+  reenviar_convite: "Reenviou convite",
+  cancelar_convite: "Cancelou convite",
+  aceitar_convite: "Aceitou convite",
+  recusar_convite: "Recusou convite",
+  mudar_papel: "Mudou o papel de um convidado",
+  revogar_acesso: "Revogou acesso",
+  sair_do_banco: "Saiu de um banco compartilhado",
+  mcp_convidado: "Mudou as ações do MCP de convidado",
+  mcp_connection_strings: "Viu connection strings (MCP)",
+  mcp_ping_project: "Pingou (MCP)",
+  mcp_restore_project: "Reativou (MCP)",
+  mcp_pause_project: "Pausou (MCP)",
 };
 
 const fmt = new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "medium", timeZone: "America/Sao_Paulo" });
