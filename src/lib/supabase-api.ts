@@ -174,6 +174,11 @@ async function call<T>(token: string, method: string, path: string, body?: unkno
 }
 
 function friendlyError(status: number, message: string) {
+  // limite Free do Supabase: é por pessoa (dona/admin), somando todas as orgs dela
+  if (/maximum limits for the number of active free projects/i.test(message)) {
+    const who = message.split(":").slice(1).join(":").replace(/\(\d+ project limit\)/gi, "").split(/\.\s/)[0].trim();
+    return `O Supabase recusou: ${who || "um dono ou admin desta organização"} já tem 2 bancos grátis ligados, somando todas as organizações em que é dono ou admin (inclusive as que não estão no BaseHub). Pause ou exclua um banco dessa pessoa, ou crie em outra organização.`;
+  }
   switch (status) {
     case 401:
       return "Acesso expirado ou revogado. Reconecte esta conta em Contas.";

@@ -119,7 +119,7 @@ export function FreeMeter({ used, limit = 2, compact = false }: { used: number; 
   return (
     <span
       className="inline-flex items-center gap-2"
-      title={`No plano grátis, cada e-mail do Supabase pode ter ${limit} bancos ligados ao mesmo tempo. Bancos pausados não contam.`}
+      title={`No plano grátis, cada pessoa (e-mail) dona ou admin pode ter ${limit} bancos ligados ao mesmo tempo, somando todas as organizações em que tem esse papel. Bancos pausados não contam.`}
     >
       <span aria-hidden className="flex gap-0.5">
         {Array.from({ length: limit }, (_, i) => (
@@ -128,9 +128,13 @@ export function FreeMeter({ used, limit = 2, compact = false }: { used: number; 
       </span>
       <span>
         {!compact && "Bancos grátis ligados: "}
-        <strong className="tabular-nums">{Math.min(used, limit)} de {limit}</strong>
+        <strong className="tabular-nums">{used} de {limit}</strong>
         {" · "}
-        {free ? <span className="text-emerald-600 dark:text-emerald-400">{free} livre{free > 1 ? "s" : ""}</span> : <span className="text-rose-600 dark:text-rose-400">limite atingido</span>}
+        {free ? (
+          <span className="text-emerald-600 dark:text-emerald-400">{free} livre{free > 1 ? "s" : ""}</span>
+        ) : (
+          <span className="text-rose-600 dark:text-rose-400">{used > limit ? "acima do limite" : "limite atingido"}</span>
+        )}
       </span>
     </span>
   );

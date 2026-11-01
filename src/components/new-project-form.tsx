@@ -2,14 +2,16 @@
 
 import { Search, Sparkles } from "lucide-react";
 import Link from "next/link";
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { type ActionResult, type CreatedProject, createProjectAction } from "@/app/actions";
 import { REGIONS } from "@/lib/status";
 import { Spinner } from "./confirm-action";
+import { CreateOrgButton } from "./create-org-button";
+import { toast } from "./toast";
 import { CopyField } from "./copy-field";
 import { buttonClass, Card, inputClass, Notice } from "./app-ui";
 
-type AccountOption = { slug: string; name: string; login?: string; freeSlots: number | null; ok: boolean };
+type AccountOption = { slug: string; name: string; login?: string; freeSlots: number | null; ok: boolean; blockedBy?: string[] };
 
 /** 0 = com vaga, 1 = plano pago, 2 = cheio, 3 = com erro (ordem) */
 const rank = (a: AccountOption) => (!a.ok ? 3 : a.freeSlots === null ? 1 : a.freeSlots > 0 ? 0 : 2);
@@ -23,16 +25,17 @@ const TONE = {
 };
 
 /** Grupo = e-mail do Supabase (o limite de 2 bancos grátis ligados é do e-mail). */
-type Group = { key: string; login?: string; items: AccountOption[]; freeSlots: number | null };
+type Group = { key: string; login?: string; items: AccountOption[]; freeSlots: number | null; used?: number };
 
-function groupByLogin(list: AccountOption[]): Group[] {
+function groupByLogin(list: AccountOption[], usage: Record<string, number> = {}): Group[] {
   const map = new Map<string, Group>();
   for (const a of list) {
     const key = a.login ?? `org:${a.slug}`;
-    const g = map.get(key) ?? { key, login: a.login, items: [], freeSlots: null };
+    const used = a.login ? usage[a.login] : undefined;
+    const g = map.get(key) ?? { key, login: a.login, items: [], freeSlots: null, used };
     g.items.push(a);
-    // vagas do e-mail: vêm iguais em todas as orgs grátis dele
-    if (a.ok && a.freeSlots !== null) g.freeSlots = a.freeSlots;
+    // saldo do e-mail (pessoa): 2 menos o que ela tem ligado em todas as orgs em que é dona/admin
+    if (a.ok && a.freeSlots !== null) g.freeSlots = used !== undefined ? Math.max(0, 2 - used) : a.freeSlots;
     map.set(key, g);
   }
   const grank = (g: Group) => Math.min(...g.items.map(rank));
@@ -57,10 +60,26 @@ const cardBase = "flex cursor-pointer items-start gap-2.5 rounded-lg border px-3
 const cardOn = "border-emerald-500 bg-emerald-50/60 dark:border-emerald-600 dark:bg-emerald-950/30";
 const cardOff = "border-zinc-200 hover:border-zinc-300 hover:bg-zinc-50 dark:border-zinc-800 dark:hover:border-zinc-700 dark:hover:bg-zinc-800/40";
 
-export function NewProjectForm({ accounts, defaultOrg }: { accounts: AccountOption[]; defaultOrg?: string }) {
+export function NewProjectForm({
+  accounts,
+  defaultOrg,
+  loginUsage = {},
+  patLogins = [],
+}: {
+  accounts: AccountOption[];
+  defaultOrg?: string;
+  loginUsage?: Record<string, number>;
+  /** e-mails conectados por Access Token: nesses dá para criar organização */
+  patLogins?: string[];
+}) {
   const [state, formAction, pending] = useActionState<ActionResult<CreatedProject> | null, FormData>(createProjectAction, null);
   const [org, setOrg] = useState(defaultOrg && accounts.some((a) => a.slug === defaultOrg && a.ok) ? defaultOrg : "auto");
   const [query, setQuery] = useState("");
+
+  // erro ao criar vira toast (cada envio devolve um objeto novo, então repete se errar de novo)
+  useEffect(() => {
+    if (state && !state.ok) toast(false, state.message);
+  }, [state]);
 
   const usable = accounts.filter((a) => a.ok && (a.freeSlots === null || a.freeSlots > 0));
   const auto = usable[0];
@@ -73,8 +92,9 @@ export function NewProjectForm({ accounts, defaultOrg }: { accounts: AccountOpti
     accounts
       .filter((a) => !q || a.name.toLowerCase().includes(q) || (a.login ?? "").toLowerCase().includes(q))
       .sort((a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name)),
+    loginUsage,
   );
-  const emailsWithSlot = groupByLogin(accounts).filter((g) => g.freeSlots === null ? g.items.some((a) => a.ok) : g.freeSlots > 0).length;
+  const emailsWithSlot = groupByLogin(accounts, loginUsage).filter((g) => g.freeSlots === null ? g.items.some((a) => a.ok) : g.freeSlots > 0).length;
 
   if (state?.ok && state.data) {
     const d = state.data;
@@ -98,7 +118,6 @@ export function NewProjectForm({ accounts, defaultOrg }: { accounts: AccountOpti
 
   return (
     <form action={formAction} className="flex flex-col gap-5">
-      {state && !state.ok && <Notice tone="error" title="Não foi possível criar">{state.message}</Notice>}
 
       <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_22rem] 2xl:grid-cols-[minmax(0,1fr)_24rem]">
         {/* Detalhes: à direita e fixo no desktop; primeiro no celular */}
@@ -140,7 +159,7 @@ export function NewProjectForm({ accounts, defaultOrg }: { accounts: AccountOpti
             )}
             {selectedFull && (
               <p className="mt-1.5 text-amber-700 dark:text-amber-300">
-                Este e-mail já tem 2 bancos grátis ligados. O Supabase vai recusar, a menos que você pause um banco dele antes.
+                {selected?.blockedBy?.length ? `${selected.blockedBy.join(", ")} já ${selected.blockedBy.length > 1 ? "têm" : "tem"} 2 bancos grátis ligados (somando todas as organizações em que é dono ou admin). O Supabase vai recusar, a menos que um banco dessa pessoa seja pausado.` : "Este e-mail já tem 2 bancos grátis ligados. O Supabase vai recusar, a menos que você pause um banco dele antes."}
               </p>
             )}
           </div>
@@ -174,7 +193,7 @@ export function NewProjectForm({ accounts, defaultOrg }: { accounts: AccountOpti
 
             <div className="flex flex-wrap items-center justify-between gap-2">
               <span className="text-xs text-zinc-500">
-                Ou escolha a organização · {emailsWithSlot} e-mail(s) com vaga. O limite de 2 bancos grátis ligados é por e-mail, somando as orgs dele.
+                Ou escolha a organização · {emailsWithSlot} e-mail(s) com vaga. O limite de 2 bancos grátis ligados é por pessoa: vale para todos os donos e admins da organização.
               </span>
               <label className="relative w-full sm:w-64">
                 <Search aria-hidden className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-zinc-400" />
@@ -199,8 +218,18 @@ export function NewProjectForm({ accounts, defaultOrg }: { accounts: AccountOpti
                       <span className="max-w-full truncate text-sm font-medium" title={g.login}>{g.login ?? "E-mail não identificado"}</span>
                       <span className="flex items-center gap-2">
                         <GroupBadge g={g} />
-                        {g.freeSlots !== null && <span className="text-xs text-zinc-500">{2 - g.freeSlots} de 2 ligados</span>}
+                        {g.freeSlots !== null && <span className="text-xs text-zinc-500">{g.used ?? 2 - g.freeSlots} de 2 ligados</span>}
                       </span>
+                      {g.login &&
+                        (patLogins.includes(g.login) ? (
+                          <span className="-ml-2.5 xl:-ml-2.5">
+                            <CreateOrgButton login={g.login} />
+                          </span>
+                        ) : (
+                          <Link href="/contas?conectar=token" className="text-xs text-zinc-500 underline-offset-2 hover:text-emerald-700 hover:underline dark:hover:text-emerald-400">
+                            Criar organização: conecte por Access Token
+                          </Link>
+                        ))}
                     </div>
                     <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
                       {g.items.map((a) => (
@@ -217,7 +246,13 @@ export function NewProjectForm({ accounts, defaultOrg }: { accounts: AccountOpti
                           <span className="min-w-0 flex-1">
                             <span className="block truncate font-medium">{a.name}</span>
                             <span className="block truncate text-xs text-zinc-500">
-                              {!a.ok ? "Com erro: reconecte em Contas" : a.freeSlots === null ? "Org paga, sem limite" : "Org grátis, usa a vaga do e-mail"}
+                              {!a.ok
+                                ? "Com erro: reconecte em Contas"
+                                : a.freeSlots === null
+                                  ? "Org paga, sem limite"
+                                  : a.blockedBy?.length
+                                    ? `Sem vaga: ${a.blockedBy.join(", ")} no limite`
+                                    : "Org grátis, usa a vaga do e-mail"}
                             </span>
                           </span>
                         </label>

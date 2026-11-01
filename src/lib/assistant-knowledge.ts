@@ -91,7 +91,8 @@ O token fica criptografado. Para trocar um token vencido ou revogado use "Colar 
 - REMOVED: excluído.
 
 ## Bancos grátis ligados (limite do plano Free do Supabase)
-No plano grátis do Supabase, cada e-mail (login) pode ter 2 bancos ligados ao mesmo tempo, somando todas as organizações dele. Bancos pausados e bancos em organizações pagas não contam. Em Contas, cada e-mail mostra "Bancos grátis ligados: 1 de 2, 1 livre". Se todos estiverem cheios: "Todos os e-mails já estão com 2 bancos grátis ligados". Para liberar vaga, pause ou exclua um banco, use uma organização paga ou conecte outro e-mail.
+No plano grátis do Supabase, cada pessoa (e-mail) pode ter 2 bancos ligados ao mesmo tempo, somando todas as organizações em que ela é dona (Owner) ou admin (Administrator), mesmo organizações de outros logins. Para criar um banco numa organização, o Supabase confere todos os donos e admins dela: basta um estar no limite para recusar. Bancos pausados e bancos em organizações pagas não contam.
+O BaseHub faz a mesma conta com as organizações conectadas: em Contas cada e-mail mostra "Bancos grátis ligados: X de 2" (pode aparecer "acima do limite"), e a organização sem vaga mostra quem está bloqueando ("Sem vaga: fulano já tem 2 ligados"). Organizações que não estão no BaseHub ficam de fora da conta; nesse caso o Supabase pode recusar mesmo com vaga no painel, e a mensagem diz quem está no limite. Para liberar vaga, pause ou exclua um banco da pessoa no limite, use uma organização paga ou crie numa organização em que ela não seja dona/admin.
 
 ## Criar banco novo (/novo)
 1. Clique em "+ Novo banco".

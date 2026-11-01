@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { NewProjectForm } from "@/components/new-project-form";
 import { buttonClass, EmptyState, PageHeader } from "@/components/app-ui";
+import { listPatLogins } from "@/lib/db";
 import { loadHub } from "@/lib/hub";
 
 export const metadata: Metadata = { title: "Novo banco" };
@@ -10,7 +11,7 @@ export const metadata: Metadata = { title: "Novo banco" };
 export default async function NovoPage({ searchParams }: PageProps<"/novo">) {
   const sp = await searchParams;
   const session = await requireSession();
-  const { accounts } = await loadHub(session.tenantId);
+  const [{ accounts, logins }, pats] = await Promise.all([loadHub(session.tenantId), listPatLogins(session.tenantId)]);
 
   return (
     <>
@@ -25,7 +26,9 @@ export default async function NovoPage({ searchParams }: PageProps<"/novo">) {
       ) : (
         <NewProjectForm
           defaultOrg={typeof sp.org === "string" ? sp.org : undefined}
-          accounts={accounts.map((a) => ({ slug: a.orgSlug, name: a.name, login: a.login, freeSlots: a.freeSlots, ok: !a.error }))}
+          accounts={accounts.map((a) => ({ slug: a.orgSlug, name: a.name, login: a.login, freeSlots: a.freeSlots, ok: !a.error, blockedBy: a.blockedBy }))}
+          patLogins={pats.map((p) => p.email)}
+          loginUsage={Object.fromEntries(logins.filter((l) => l.login).map((l) => [l.login!, l.activeFree]))}
         />
       )}
     </>

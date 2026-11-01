@@ -38,7 +38,7 @@ Next.js 16 (App Router, `src/proxy.ts` no lugar de middleware), React 19, Tailwi
 
 ## Regras de negócio que não podem quebrar
 
-- **Vagas grátis do Supabase são por e-mail (login)**: 2 bancos ligados somando todas as orgs Free daquele e-mail. Org paga não conta. Use `loadHub` (`freeSlots`, `logins`), nunca conte por organização.
+- **Vagas grátis do Supabase são por pessoa (e-mail)**: cada dono/admin pode ter 2 bancos ligados somando todas as orgs Free em que tem esse papel, e uma org só tem vaga se TODOS os donos/admins dela estiverem abaixo de 2. Org paga não conta. Use `loadHub` (`freeSlots` e `blockedBy` por org, `logins` por e-mail); nunca conte por organização nem só pelo login que conectou.
 - **MCP sempre confere o banco ao vivo** (`resolveProject`) antes de agir, ignora projetos REMOVED e responde com o nome do banco afetado.
 - **Permissões do MCP**: ações padrão + override por banco (padrão / personalizado / bloqueado). `sql_write` é permissão (não ferramenta): sem ela, `run_sql` com `read_only=false` é recusado no servidor.
 - **IA é opcional**: tudo depende de `env.aiEnabled` (`ANTHROPIC_API_KEY`). Sem a chave, nada de IA aparece na tela.

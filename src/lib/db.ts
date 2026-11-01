@@ -44,6 +44,9 @@ export type Connection = {
   authKind?: "oauth" | "pat";
   /** Para PAT: createdAt do login cujo token está gravado aqui. */
   tokenVersion?: string;
+  /** Donos e admins da org (e-mail em minúsculo): é por eles que o Supabase conta o limite Free. Cache. */
+  admins?: string[];
+  adminsAt?: number;
 };
 
 export type LogEntry = {
@@ -130,7 +133,7 @@ export async function updateTokens(
 export async function setConnectionFields(
   tenant: string,
   orgSlug: string,
-  fields: Partial<Pick<Connection, "status" | "label" | "login" | "loginVerified">>,
+  fields: Partial<Pick<Connection, "status" | "label" | "login" | "loginVerified" | "admins" | "adminsAt">>,
 ) {
   const entries = Object.entries(fields);
   const set = entries.filter(([, v]) => v !== undefined);

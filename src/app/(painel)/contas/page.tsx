@@ -45,7 +45,7 @@ const str = (v: string | string[] | undefined) => (typeof v === "string" ? v : u
 export default async function ContasPage({ searchParams }: PageProps<"/contas">) {
   const sp = await searchParams;
   const session = await requireSession();
-  const { accounts, loginErrors } = await loadHub(session.tenantId);
+  const { accounts, logins, loginErrors } = await loadHub(session.tenantId);
   // depois do loadHub: a sincronização dos tokens pode ter adicionado organizações
   const usage = await orgUsage(session.tenantId);
   const atLimit = usage.limit !== null && usage.used >= usage.limit;
@@ -137,8 +137,9 @@ export default async function ContasPage({ searchParams }: PageProps<"/contas">)
         ) : (
           groups.map((g) => {
             const projects = g.accounts.reduce((n, a) => n + a.projects.length, 0);
-            // o limite grátis é do e-mail: todas as orgs Free do grupo dividem os mesmos 2 bancos ligados
-            const slots = g.login ? (g.accounts.find((a) => a.freeSlots !== null)?.freeSlots ?? null) : null;
+            // o limite grátis é da PESSOA: soma as orgs Free em que ela é dona/admin (inclusive as de outros logins)
+            const summary = g.login ? logins.find((l) => l.login === g.login) : undefined;
+            const hasFree = g.accounts.some((a) => a.freeSlots !== null);
             return (
               <section key={g.login ?? "_"} aria-label={g.login ?? "Login não identificado"} className="flex flex-col gap-3">
                 <Card className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
@@ -155,9 +156,9 @@ export default async function ContasPage({ searchParams }: PageProps<"/contas">)
                       <p className="text-xs text-zinc-500">
                         {g.accounts.length} organização(ões) · {projects} projeto(s)
                       </p>
-                      {slots !== null && (
+                      {summary && hasFree && (
                         <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-300">
-                          <FreeMeter used={2 - slots} />
+                          <FreeMeter used={summary.activeFree} />
                         </p>
                       )}
                     </div>

@@ -23,10 +23,14 @@ export type AccountView = {
    * somando todas as organizações Free dela). null quando a org não é Free.
    */
   freeSlots: number | null;
+  /** Donos e admins da org (o Supabase confere todos eles ao criar um banco grátis). */
+  admins?: string[];
+  /** Quem, entre eles, já está com 2 bancos grátis ligados (impede criar aqui). */
+  blockedBy?: string[];
   error?: string;
 };
 
-/** Resumo por login Supabase: é aqui que vale o limite do plano Free. */
+/** Resumo por login Supabase (e-mail da pessoa): é aqui que vale o limite do plano Free. */
 export type LoginSummary = {
   key: string;
   login?: string;
@@ -35,6 +39,12 @@ export type LoginSummary = {
   activeFree: number;
   freeSlots: number;
 };
+
+// Regra do Supabase Free: cada PESSOA (e-mail) que é dona ou admin pode ter 2 bancos
+// grátis ligados, somando TODAS as orgs Free em que tem esse papel. Para criar um banco
+// numa org, todos os donos/admins dela precisam estar abaixo do limite.
+// Orgs não conectadas ao BaseHub ficam de fora da conta (não temos como vê-las).
+const ADMINS_TTL = 6 * 3600_000;
 
 /** Login conhecido agrupa; sem login, cada org conta sozinha (melhor estimativa). */
 const loginKey = (a: Pick<AccountView, "login" | "orgSlug">) => a.login ?? `org:${a.orgSlug}`;
@@ -102,10 +112,22 @@ export async function loadHub(tenant: string): Promise<{ accounts: AccountView[]
             await setConnectionFields(conn.tenantId, conn.orgSlug, identity).catch(() => {});
           }
         }
+        // donos/admins (cache na conexão; a lista muda pouco)
+        let admins = conn.admins;
+        if (!admins || !conn.adminsAt || Date.now() - conn.adminsAt > ADMINS_TTL) {
+          const members = await api.listMembers().catch(() => null);
+          if (members) {
+            admins = members
+              .filter((m) => /owner|admin/i.test(m.role_name))
+              .map((m) => (m.email ?? m.user_name).trim().toLowerCase())
+              .filter(Boolean);
+            await setConnectionFields(conn.tenantId, conn.orgSlug, { admins, adminsAt: Date.now() }).catch(() => {});
+          }
+        }
         const all = await api.listProjects();
         const projects = all.filter((p) => p.organization_slug === conn.orgSlug && p.status !== "REMOVED");
         const activeCount = projects.filter((p) => COUNTS_AS_ACTIVE.has(p.status)).length;
-        return { ...base, status: "ok", projects, activeCount, freeSlots: null };
+        return { ...base, status: "ok", projects, activeCount, freeSlots: null, admins };
       } catch (err) {
         return {
           ...base,
@@ -119,18 +141,45 @@ export async function loadHub(tenant: string): Promise<{ accounts: AccountView[]
     }),
   );
 
-  // Limite Free por login: soma os ativos de todas as orgs Free do mesmo login.
+  // Bancos grátis ligados por PESSOA: soma as orgs Free em que ela é dona/admin.
+  // Sem a lista de admins (falhou), a org conta só para o login dela (estimativa antiga).
+  const activeByPerson = new Map<string, number>();
+  const peopleOf = (a: AccountView) => {
+    const set = new Set(a.admins ?? []);
+    if (a.login) set.add(a.login.toLowerCase());
+    return [...set];
+  };
+  for (const a of accounts) {
+    if (a.error || !isFree(a.plan)) continue;
+    for (const person of peopleOf(a)) activeByPerson.set(person, (activeByPerson.get(person) ?? 0) + a.activeCount);
+  }
+  const used = (person: string) => activeByPerson.get(person) ?? 0;
+
+  // Resumo por login (e-mail): o que a pessoa já tem ligado em todas as orgs dela.
   const byLogin = new Map<string, LoginSummary>();
   for (const a of accounts) {
     const key = loginKey(a);
     const s = byLogin.get(key) ?? { key, login: a.login, orgSlugs: [], activeFree: 0, freeSlots: 0 };
     s.orgSlugs.push(a.orgSlug);
-    if (isFree(a.plan)) s.activeFree += a.activeCount;
+    if (!a.login && isFree(a.plan)) s.activeFree += a.activeCount; // sem e-mail: conta só a própria org
     byLogin.set(key, s);
   }
-  for (const s of byLogin.values()) s.freeSlots = Math.max(0, FREE_PLAN_ACTIVE_LIMIT - s.activeFree);
+  for (const s of byLogin.values()) {
+    if (s.login) s.activeFree = used(s.login.toLowerCase());
+    s.freeSlots = Math.max(0, FREE_PLAN_ACTIVE_LIMIT - s.activeFree);
+  }
+
+  // Vaga da ORG: o menor saldo entre todos os donos/admins dela (o Supabase confere cada um).
   for (const a of accounts) {
-    if (!a.error && isFree(a.plan)) a.freeSlots = byLogin.get(loginKey(a))!.freeSlots;
+    if (a.error || !isFree(a.plan)) continue;
+    const people = peopleOf(a);
+    if (!people.length) {
+      a.freeSlots = byLogin.get(loginKey(a))!.freeSlots;
+      continue;
+    }
+    a.freeSlots = Math.max(0, Math.min(...people.map((p) => FREE_PLAN_ACTIVE_LIMIT - used(p))));
+    const blocked = people.filter((p) => used(p) >= FREE_PLAN_ACTIVE_LIMIT);
+    if (blocked.length) a.blockedBy = blocked;
   }
   const logins = [...byLogin.values()];
 
