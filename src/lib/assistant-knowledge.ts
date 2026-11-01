@@ -65,7 +65,7 @@ O token fica criptografado. Para trocar um token vencido ou revogado use "Colar 
 
 ### Gerenciar contas
 - Cada login aparece num card com as organizações dele, o plano de cada uma e "Bancos grátis ligados: X de 2".
-- Renomear: clique no nome da conta para mudar o apelido.
+- Apelido: clique no nome da organização (ou em "Apelido") para dar um nome só no BaseHub; vazio volta ao nome do Supabase. O Supabase não deixa renomear organizações pela API: para mudar o nome de verdade, use o link "renomear no Supabase" (abre as configurações da organização lá). O BaseHub pega o nome e o plano novos sozinho em até 6 horas.
 - Reconectar: quando aparecer "Conta com erro: reconecte em Contas", o token expirou ou foi revogado. Clique em Reconectar (OAuth) ou cole um token novo (Access Token).
 - Desconectar uma organização ou "Remover login": tira do BaseHub. Nada é apagado no Supabase.
 - Página da organização: no card de cada organização, "Ver bancos (N)" abre uma tela só dela, com plano, quantidade de bancos, pausados, vagas grátis do e-mail, a tabela dos bancos (com Manter ativo, Reativar e demais ações) e os botões "Criar banco aqui" e "Abrir no Supabase".

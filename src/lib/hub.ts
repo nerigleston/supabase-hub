@@ -8,7 +8,10 @@ import { clientFor, inferLogin, type Project, SupabaseApiError } from "./supabas
 
 export type AccountView = {
   orgSlug: string;
+  /** apelido no BaseHub, se houver; senão o nome no Supabase */
   name: string;
+  /** nome real da organização no Supabase (a API não permite renomear) */
+  supabaseName: string;
   plan?: string;
   status: Connection["status"];
   connectedAt: string;
@@ -95,6 +98,7 @@ export async function loadHub(tenant: string): Promise<{ accounts: AccountView[]
       const base = {
         orgSlug: conn.orgSlug,
         name,
+        supabaseName: conn.orgName,
         plan: conn.plan,
         status: conn.status,
         connectedAt: conn.connectedAt,
@@ -112,17 +116,28 @@ export async function loadHub(tenant: string): Promise<{ accounts: AccountView[]
             await setConnectionFields(conn.tenantId, conn.orgSlug, identity).catch(() => {});
           }
         }
-        // donos/admins (cache na conexão; a lista muda pouco)
+        // donos/admins, nome e plano da org (cache na conexão; mudam pouco). Se alguém
+        // renomear a org ou mudar o plano no Supabase, o BaseHub acompanha.
         let admins = conn.admins;
         if (!admins || !conn.adminsAt || Date.now() - conn.adminsAt > ADMINS_TTL) {
-          const members = await api.listMembers().catch(() => null);
+          const [members, org] = await Promise.all([api.listMembers().catch(() => null), api.getOrganization().catch(() => null)]);
+          const fresh: Parameters<typeof setConnectionFields>[2] = { adminsAt: Date.now() };
           if (members) {
             admins = members
               .filter((m) => /owner|admin/i.test(m.role_name))
               .map((m) => (m.email ?? m.user_name).trim().toLowerCase())
               .filter(Boolean);
-            await setConnectionFields(conn.tenantId, conn.orgSlug, { admins, adminsAt: Date.now() }).catch(() => {});
+            fresh.admins = admins;
           }
+          if (org?.name && org.name !== conn.orgName) {
+            fresh.orgName = org.name;
+            Object.assign(base, { supabaseName: org.name, name: conn.label || org.name });
+          }
+          if (org?.plan && org.plan !== conn.plan) {
+            fresh.plan = org.plan;
+            Object.assign(base, { plan: org.plan });
+          }
+          await setConnectionFields(conn.tenantId, conn.orgSlug, fresh).catch(() => {});
         }
         const all = await api.listProjects();
         const projects = all.filter((p) => p.organization_slug === conn.orgSlug && p.status !== "REMOVED");

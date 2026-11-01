@@ -216,7 +216,7 @@ export async function renameConnectionAction(orgSlug: string, label: string): Pr
   try {
     await setConnectionFields(session.tenantId, orgSlug, { label: label.trim() || undefined });
     revalidatePath("/", "layout");
-    return { ok: true, message: "Nome atualizado." };
+    return { ok: true, message: label.trim() ? "Apelido salvo no BaseHub." : "Apelido removido: volta o nome do Supabase." };
   } catch (err) {
     return fail(err);
   }

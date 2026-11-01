@@ -133,7 +133,7 @@ export async function updateTokens(
 export async function setConnectionFields(
   tenant: string,
   orgSlug: string,
-  fields: Partial<Pick<Connection, "status" | "label" | "login" | "loginVerified" | "admins" | "adminsAt">>,
+  fields: Partial<Pick<Connection, "status" | "label" | "login" | "loginVerified" | "admins" | "adminsAt" | "orgName" | "plan">>,
 ) {
   const entries = Object.entries(fields);
   const set = entries.filter(([, v]) => v !== undefined);
