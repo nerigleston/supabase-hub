@@ -31,7 +31,7 @@ Painel para gerenciar **várias contas e organizações do Supabase em um lugar 
 - **Várias contas Supabase**: conecte organizações por OAuth ou pelo Access Token da conta inteira (as organizações novas aparecem sozinhas). Cada organização tem uma página própria com os bancos dela e as vagas do e-mail.
 - **Planos opcionais**: quem oferece como SaaS pode limitar as organizações do plano Grátis e cobrar Pro e Business por assinatura via AbacatePay (Pix ou cartão). Self-host sem configurar nada não tem limite.
 - **Visão geral de projetos**: estado de cada banco (ativo, pausado, restaurando…), plano, região.
-- **Limite do plano Free**: o Supabase permite 2 bancos grátis ligados **por e-mail** (somando todas as organizações dele). O painel mostra as vagas de cada e-mail e escolhe automaticamente onde criar o próximo.
+- **Limite do plano Free**: o Supabase permite 2 bancos grátis ligados **por pessoa (e-mail)**, somando todas as organizações em que ela é dona ou admin, e confere todos os donos e admins da organização antes de criar. O painel faz a mesma conta (com as organizações conectadas), mostra quem está bloqueando e escolhe automaticamente onde criar o próximo.
 - **Criar, pausar, reativar e excluir** projetos.
 - **Editor SQL** e **navegador de tabelas**.
 - **Conectar**: connection strings (pooler transaction/session e direta) e snippets prontos por aba: `.env`, psql, Node (pg), Prisma, Drizzle, Python, Go, JDBC, .NET, PHP e supabase-js.
