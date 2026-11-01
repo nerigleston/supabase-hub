@@ -33,22 +33,40 @@ export function AccountCard({ account }: { account: AccountView }) {
                 e.preventDefault();
                 save();
               }}
-              className="flex gap-2"
+              className="flex flex-col gap-1.5"
             >
-              <input
-                autoFocus
-                value={label}
-                onChange={(e) => setLabel(e.target.value)}
-                onKeyDown={(e) => e.key === "Escape" && (setEditing(false), setLabel(account.name))}
-                aria-label="Nome da conta"
-                className={inputClass}
-              />
-              <button disabled={pending} className={buttonClass("primary")}>{pending ? <Spinner /> : "Salvar"}</button>
+              <div className="flex gap-2">
+                <input
+                  autoFocus
+                  value={label}
+                  onChange={(e) => setLabel(e.target.value)}
+                  onKeyDown={(e) => e.key === "Escape" && (setEditing(false), setLabel(account.name))}
+                  placeholder={account.supabaseName}
+                  aria-label="Apelido da organização no BaseHub"
+                  className={inputClass}
+                />
+                <button disabled={pending} className={buttonClass("primary")}>{pending ? <Spinner /> : "Salvar"}</button>
+              </div>
+              <p className="text-xs text-zinc-500">
+                Apelido só no BaseHub (vazio volta ao nome do Supabase). O Supabase não deixa renomear pela API:{" "}
+                <a
+                  href={`https://supabase.com/dashboard/org/${account.orgSlug}/general`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="font-medium text-emerald-700 hover:underline dark:text-emerald-400"
+                >
+                  renomear no Supabase ↗
+                </a>
+                . O BaseHub pega o nome novo sozinho em algumas horas.
+              </p>
             </form>
           ) : (
-            <button onClick={() => setEditing(true)} className="group text-left" title="Clique para renomear">
+            <button onClick={() => setEditing(true)} className="group text-left" title="Clique para dar um apelido">
               <h3 className="truncate font-semibold group-hover:underline">{account.name}</h3>
             </button>
+          )}
+          {!editing && account.name !== account.supabaseName && (
+            <p className="mt-0.5 truncate text-xs text-zinc-500">No Supabase: {account.supabaseName}</p>
           )}
           <p className="mt-0.5 font-mono text-xs text-zinc-500">{account.orgSlug}</p>
         </div>
@@ -99,7 +117,7 @@ export function AccountCard({ account }: { account: AccountView }) {
             {account.authKind === "pat" ? "Colar token novo" : "Reconectar"}
           </a>
         )}
-        <button onClick={() => setEditing(true)} className={buttonClass("ghost", "px-2.5 py-1 text-xs")}>Renomear</button>
+        <button onClick={() => setEditing(true)} className={buttonClass("ghost", "px-2.5 py-1 text-xs")}>Apelido</button>
         <ConfirmAction
           label="Desconectar"
           variant="ghost"
