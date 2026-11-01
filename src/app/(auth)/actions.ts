@@ -101,6 +101,31 @@ export async function forgotAction(_prev: FormState, form: FormData): Promise<Fo
   redirect(`/redefinir-senha?${q(email)}`);
 }
 
+/** Passo 2 da troca de senha: confere o código antes de pedir a senha nova (o passo 3 confere de novo ao salvar). */
+export async function verifyResetCodeAction(emailRaw: string, codeRaw: string): Promise<{ ok: boolean; message: string }> {
+  const email = emailRaw.trim().toLowerCase();
+  const code = codeRaw.trim();
+  if (!/^\d{6}$/.test(code)) return { ok: false, message: "O código tem 6 números." };
+  try {
+    const check = await checkCode("reset", email, code);
+    return check === "ok" ? { ok: true, message: "Código confirmado." } : { ok: false, message: codeMessage[check] };
+  } catch (err) {
+    return { ok: false, message: authErrorMessage(err) };
+  }
+}
+
+/** Reenvia o código de troca de senha (mesma resposta exista ou não a conta). */
+export async function resendResetAction(emailRaw: string): Promise<FormState> {
+  const email = emailRaw.trim().toLowerCase();
+  try {
+    if (await userStatus(email)) await sendResetCode(email);
+    return { info: "Se existir uma conta com este e-mail, enviamos um novo código. Confira também o spam." };
+  } catch (err) {
+    if (err instanceof CodeError) return { error: err.message };
+    return { error: authErrorMessage(err) };
+  }
+}
+
 export async function resetAction(_prev: FormState, form: FormData): Promise<FormState> {
   const email = str(form, "email").trim().toLowerCase();
   const code = str(form, "code").trim();
