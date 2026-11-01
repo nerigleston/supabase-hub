@@ -29,6 +29,12 @@ Next.js 16 (App Router, `src/proxy.ts` no lugar de middleware), React 19, Tailwi
 | `src/lib/assistant-knowledge.ts` | Guia do sistema usado pelo minichat (vai em prompt caching) |
 | `src/lib/redact.ts` | Mascara segredos (entrada e saída da IA) |
 | `src/lib/plans.ts` | Planos Grátis/Pro/Business, `hasMcp`, limites de organizações |
+| `src/lib/access.ts` | **Porteiro de banco**: `resolveAccess`/`requireAccess` dizem se o usuário é dono ou convidado e com qual papel; `tenant` é sempre o dono |
+| `src/lib/roles.ts` | Papéis (Leitura, Editor, Admin), o que cada um pode (`can`) e o teto de ações do MCP por papel |
+| `src/lib/shares.ts` + `src/app/share-actions.ts` | Compartilhamento: convites, aceitar, papéis, revogar, ações do MCP por pessoa |
+| `src/lib/email.ts` | Envio pelo Resend e moldura dos e-mails |
+| `src/lib/users.ts` | Índice e-mail -> conta (gravado no login) |
+| `infra/cognito-email-sender/` | Lambda + script que manda os códigos do Cognito pelo Resend |
 
 ## Regras de negócio que não podem quebrar
 
@@ -38,6 +44,9 @@ Next.js 16 (App Router, `src/proxy.ts` no lugar de middleware), React 19, Tailwi
 - **IA é opcional**: tudo depende de `env.aiEnabled` (`ANTHROPIC_API_KEY`). Sem a chave, nada de IA aparece na tela.
 - **Custo da IA**: descrição só é gerada sem descrição salva ou com esquema mudado; até 3 rascunhos por versão do esquema; limites por usuário e teto diário GERAL (`rateLimit("GLOBAL", ...)`). Bancos grandes: só ~40 tabelas detalhadas, pedido com teto fixo. Não remova esses limites.
 - **Dados sensíveis**: tokens e senhas criptografados (AES-256-GCM); linhas de exemplo para a IA só com opt-in e com colunas sensíveis ocultas; segredos mascarados com `redactSecrets`.
+
+- **Toda ação ou tela de um banco passa por `requireAccess`/`resolveAccess`** com a permissão mínima (`view`, `write`, `secrets`, `manage`, `delete`). Nunca use `session.tenantId` direto para dados de um banco: use `access.tenant` (o dono). Logs vão para o dono com `actor(access)`.
+- **Compartilhar é Pro/Business** (plano do DONO) e só para quem já tem conta no BaseHub. O MCP do convidado vê o banco compartilhado, limitado pelo que o dono/Admin liberou para aquela pessoa (dentro do teto do papel).
 
 ## Convenções
 
