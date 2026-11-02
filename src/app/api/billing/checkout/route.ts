@@ -2,7 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { abacate, type BillingCycle, createCustomer, createSubscriptionCheckout, type PaidPlan } from "@/lib/abacatepay";
 import { addLog } from "@/lib/db";
 import { env } from "@/lib/env";
-import { getBilling, getPlan, linkCustomer, updateBilling } from "@/lib/plans";
+import { getBilling, getPlan, linkAbacateId, linkCustomer, updateBilling } from "@/lib/plans";
 import { rateLimit } from "@/lib/ratelimit";
 import { getSession } from "@/lib/session";
 
@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
       customerId = (await createCustomer({ email: session.email, tenantId: session.tenantId })).id;
       await linkCustomer(session.tenantId, customerId);
     }
-    await updateBilling(session.tenantId, { pendingPlan: plan });
+    await updateBilling(session.tenantId, { pendingPlan: plan, pendingCycle: cycle });
     const checkout = await createSubscriptionCheckout({
       productId,
       customerId,
@@ -45,6 +45,7 @@ export async function POST(request: NextRequest) {
       completionUrl: `${env.appUrl}/assinar?pago=1`,
     });
     url = checkout.url;
+    await linkAbacateId(session.tenantId, checkout.id); // a assinatura nasce do checkout (checkoutId)
     await addLog(session.tenantId, { user: session.email, action: "checkout_iniciado", target: `${plan === "business" ? "Business" : "Pro"} ${cycle === "yearly" ? "anual" : "mensal"}`, ok: true });
   } catch (err) {
     console.error("checkout abacatepay", err);

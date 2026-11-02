@@ -50,6 +50,8 @@ export type BillingRecord = {
   cycle?: string;
   /** Plano escolhido no último checkout; o webhook usa ao confirmar o pagamento. */
   pendingPlan?: "pro" | "business";
+  /** Período do último checkout: o webhook v2 não manda a frequência. */
+  pendingCycle?: "monthly" | "yearly";
   updatedAt?: string;
 };
 
@@ -85,10 +87,12 @@ export async function updateBilling(tenant: string, fields: BillingRecord) {
 
 /** Liga o cliente do AbacatePay ao tenant (o webhook só traz o cliente). */
 export async function linkCustomer(tenant: string, customerId: string) {
-  await Promise.all([
-    doc.send(new PutCommand({ TableName: env.table, Item: { pk: `ABACATE#${customerId}`, sk: "TENANT", tenantId: tenant } })),
-    updateBilling(tenant, { customerId }),
-  ]);
+  await Promise.all([linkAbacateId(tenant, customerId), updateBilling(tenant, { customerId })]);
+}
+
+/** Liga um id da AbacatePay (cliente cust_ ou checkout bill_) ao tenant, para o webhook achar o dono. */
+export async function linkAbacateId(tenant: string, id: string) {
+  await doc.send(new PutCommand({ TableName: env.table, Item: { pk: `ABACATE#${id}`, sk: "TENANT", tenantId: tenant } }));
 }
 
 export async function tenantOfCustomer(customerId: string): Promise<string | null> {
