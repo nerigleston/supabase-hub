@@ -11,6 +11,13 @@ const WEBHOOK_PUBLIC_KEY =
   "t9dXRhHHo3yDEj5pVDYz0frf7q6bMKyMRmxxCPIPp3RCplBfXRxqlC6ZpiWmOqj4L63qEaeUOtrCI8P0VMUgo6iIga2ri9ogaHFs0WIIywSMg0q7RmBfybe1E5XJcfC4IW3alNqym0tXoAKkzvfEjZxV6bE0oG2zJrNNYmUCKZyV0KZ3JS8Votf9EAWWYdiDkMkpbMdPggfh1EqHlVkMiTady6jOR3hyzGEHrIz2Ret0xHKMbiqkr9HS1JhNHDX9";
 
 export type BillingCycle = "monthly" | "yearly";
+export type PaidPlan = "pro" | "business";
+
+// Um produto por plano e período (a AbacatePay salva um período por produto).
+const PRODUCT_ENV: Record<PaidPlan, Record<BillingCycle, string>> = {
+  pro: { monthly: "ABACATEPAY_PRODUCT_MONTHLY", yearly: "ABACATEPAY_PRODUCT_YEARLY" },
+  business: { monthly: "ABACATEPAY_PRODUCT_BUSINESS_MONTHLY", yearly: "ABACATEPAY_PRODUCT_BUSINESS_YEARLY" },
+};
 
 export const abacate = {
   /** Pagamento liberado: exige PAYMENTS_ENABLED=true além das credenciais (sandbox nunca abre sozinho). */
@@ -19,11 +26,11 @@ export const abacate = {
       process.env.PAYMENTS_ENABLED === "true" &&
         process.env.ABACATEPAY_API_KEY &&
         process.env.ABACATEPAY_WEBHOOK_SECRET &&
-        abacate.product("monthly"),
+        abacate.product("pro", "monthly"),
     );
   },
-  product(cycle: BillingCycle): string | null {
-    return (cycle === "monthly" ? process.env.ABACATEPAY_PRODUCT_MONTHLY : process.env.ABACATEPAY_PRODUCT_YEARLY) || null;
+  product(plan: PaidPlan, cycle: BillingCycle): string | null {
+    return process.env[PRODUCT_ENV[plan][cycle]] || null;
   },
 };
 

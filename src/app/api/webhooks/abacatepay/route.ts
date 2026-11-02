@@ -67,15 +67,22 @@ export async function POST(request: NextRequest) {
         // estende a partir do fim atual se ainda estiver valendo (renovação adiantada não perde dias)
         const base = Math.max(Date.now(), current.until ? new Date(current.until).getTime() : 0);
         const until = new Date(base + (periodDays(sub?.frequency) + GRACE_DAYS) * DAY).toISOString();
+        // plano do último checkout; renovação sem checkout novo mantém o plano atual
+        const plan =
+          event.event === "subscription.renewed" && (current.plan === "pro" || current.plan === "business")
+            ? current.plan
+            : current.pendingPlan === "business"
+              ? "business"
+              : "pro";
         await updateBilling(tenant, {
-          plan: "pro",
+          plan,
           until,
           source: "abacatepay",
           subscriptionId: sub?.id,
           subscriptionStatus: sub?.status ?? "ACTIVE",
           cycle: sub?.frequency,
         });
-        await addLog(tenant, { user: "abacatepay", action: "assinatura_paga", target: `Pro até ${until.slice(0, 10)}`, ok: true });
+        await addLog(tenant, { user: "abacatepay", action: "assinatura_paga", target: `${plan === "business" ? "Business" : "Pro"} até ${until.slice(0, 10)}`, ok: true });
         break;
       }
       case "subscription.cancelled": {

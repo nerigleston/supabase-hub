@@ -48,6 +48,8 @@ export type BillingRecord = {
   subscriptionId?: string;
   subscriptionStatus?: string;
   cycle?: string;
+  /** Plano escolhido no último checkout; o webhook usa ao confirmar o pagamento. */
+  pendingPlan?: "pro" | "business";
   updatedAt?: string;
 };
 
