@@ -53,25 +53,38 @@ async function call<T>(path: string, body: unknown): Promise<T> {
 }
 
 export function createCustomer(input: { email: string; tenantId: string }) {
-  return call<{ id: string }>("/customers/create", { data: { email: input.email }, metadata: { tenantId: input.tenantId } });
+  // v2: corpo plano (sem `data`); metadata só aceita valores texto
+  return call<{ id: string }>("/customers/create", { email: input.email, metadata: { tenantId: input.tenantId } });
 }
 
-export function createSubscriptionCheckout(input: {
+type Method = "PIX" | "CARD";
+
+export async function createSubscriptionCheckout(input: {
   productId: string;
   customerId: string;
   tenantId: string;
   returnUrl: string;
   completionUrl: string;
 }) {
-  return call<{ id: string; url: string }>("/subscriptions/create", {
-    items: [{ id: input.productId, quantity: 1 }],
-    customerId: input.customerId,
-    externalId: input.tenantId,
-    returnUrl: input.returnUrl,
-    completionUrl: input.completionUrl,
-    methods: ["PIX", "CARD"],
-    metadata: { tenantId: input.tenantId },
-  });
+  const create = (methods: Method[]) =>
+    call<{ id: string; url: string }>("/subscriptions/create", {
+      items: [{ id: input.productId, quantity: 1 }],
+      customerId: input.customerId,
+      externalId: input.tenantId,
+      returnUrl: input.returnUrl,
+      completionUrl: input.completionUrl,
+      methods,
+      metadata: { tenantId: input.tenantId },
+    });
+  try {
+    return await create(["PIX", "CARD"]);
+  } catch (err) {
+    // a loja pode ainda não ter um dos meios liberado ("CARD is not available for this store")
+    const msg = err instanceof Error ? err.message : "";
+    if (/CARD is not available/i.test(msg)) return create(["PIX"]);
+    if (/PIX is not available/i.test(msg)) return create(["CARD"]);
+    throw err;
+  }
 }
 
 export function cancelSubscription(id: string) {
@@ -100,8 +113,8 @@ export type AbacateWebhook = {
   event: string;
   devMode: boolean;
   data: {
-    subscription?: { id: string; status: string; frequency?: string; amount?: number };
+    subscription?: { id: string; status: string; frequency?: string; amount?: number; checkoutId?: string; customerId?: string };
     customer?: { id: string; email?: string };
-    checkout?: { externalId?: string | null; customerId?: string };
+    checkout?: { id?: string; externalId?: string | null; customerId?: string };
   };
 };

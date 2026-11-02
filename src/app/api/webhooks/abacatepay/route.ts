@@ -52,24 +52,34 @@ export async function POST(request: NextRequest) {
   if (!(await markEventSeen(event.id))) return Response.json({ duplicate: true });
 
   try {
-    const customerId = event.data.customer?.id ?? event.data.checkout?.customerId;
-    const tenant = (customerId && (await tenantOfCustomer(customerId))) || event.data.checkout?.externalId || null;
+    const sub = event.data.subscription;
+    const customerId = event.data.customer?.id ?? sub?.customerId ?? event.data.checkout?.customerId;
+    const checkoutId = sub?.checkoutId ?? event.data.checkout?.id;
+    const tenant =
+      (customerId && (await tenantOfCustomer(customerId))) ||
+      (checkoutId && (await tenantOfCustomer(checkoutId))) ||
+      event.data.checkout?.externalId ||
+      null;
     if (!tenant) {
       console.error("abacatepay: evento sem tenant conhecido", event.id, event.event, customerId);
       return Response.json({ ignored: "tenant desconhecido" });
     }
 
-    const sub = event.data.subscription;
     switch (event.event) {
       case "subscription.completed":
       case "subscription.renewed": {
         const current = await getBilling(tenant);
         // estende a partir do fim atual se ainda estiver valendo (renovação adiantada não perde dias)
         const base = Math.max(Date.now(), current.until ? new Date(current.until).getTime() : 0);
-        const until = new Date(base + (periodDays(sub?.frequency) + GRACE_DAYS) * DAY).toISOString();
+        // o webhook v2 não traz a frequência: usa a do checkout (ou a já gravada, na renovação)
+        const renewed = event.event === "subscription.renewed";
+        const frequency =
+          sub?.frequency ??
+          (renewed && current.cycle ? current.cycle : current.pendingCycle === "yearly" ? "ANNUALLY" : "MONTHLY");
+        const until = new Date(base + (periodDays(frequency) + GRACE_DAYS) * DAY).toISOString();
         // plano do último checkout; renovação sem checkout novo mantém o plano atual
         const plan =
-          event.event === "subscription.renewed" && (current.plan === "pro" || current.plan === "business")
+          renewed && (current.plan === "pro" || current.plan === "business")
             ? current.plan
             : current.pendingPlan === "business"
               ? "business"
@@ -80,7 +90,7 @@ export async function POST(request: NextRequest) {
           source: "abacatepay",
           subscriptionId: sub?.id,
           subscriptionStatus: sub?.status ?? "ACTIVE",
-          cycle: sub?.frequency,
+          cycle: frequency,
         });
         await addLog(tenant, { user: "abacatepay", action: "assinatura_paga", target: `${plan === "business" ? "Business" : "Pro"} até ${until.slice(0, 10)}`, ok: true });
         break;

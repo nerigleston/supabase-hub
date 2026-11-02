@@ -32,7 +32,7 @@ import { type Access, actor, requireAccess } from "@/lib/access";
 import { requireSession } from "@/lib/session";
 import { removeAllMembers } from "@/lib/shares";
 import { REGIONS } from "@/lib/status";
-import { clientFor, createOrgWithToken, getProfileWithToken, PAT_EXPIRES_AT, type Project, SupabaseApiError } from "@/lib/supabase-api";
+import { clientFor, createOrgWithToken, PAT_EXPIRES_AT, type Project, resolveTokenEmail, SupabaseApiError } from "@/lib/supabase-api";
 
 export type ActionResult<T = undefined> = { ok: boolean; message: string; data?: T };
 
@@ -256,12 +256,11 @@ export async function connectPatAction(
   if (!rl.ok) return tooMany(rl.retryAfterSec);
 
   try {
-    const profile = await getProfileWithToken(token).catch((err) => {
+    const email = await resolveTokenEmail(token, String(form.get("email") ?? "")).catch((err) => {
       throw err instanceof SupabaseApiError && err.status === 401
         ? new Error("O Supabase recusou esse token. Ele pode ter sido apagado, expirado ou copiado incompleto.")
         : err;
     });
-    const email = profile.primary_email.toLowerCase();
     const existing = await getPatLogin(session.tenantId, email);
     const login = {
       email,
