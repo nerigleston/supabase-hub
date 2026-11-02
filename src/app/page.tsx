@@ -25,6 +25,12 @@ import type { ProjectStatus } from "@/lib/supabase-api";
 
 const REPO = "https://github.com/nerigleston/supabase-hub";
 
+/** 5583999999999 -> +55 (83) 99999-9999 */
+function formatPhone(d: string) {
+  const m = d.match(/^(\d{2})(\d{2})(\d{4,5})(\d{4})$/);
+  return m ? `+${m[1]} (${m[2]}) ${m[3]}-${m[4]}` : `+${d}`;
+}
+
 export const metadata: Metadata = {
   title: { absolute: "BaseHub · Todos os seus bancos Supabase em um só painel" },
   description:
@@ -182,6 +188,7 @@ function ProductPreview() {
 export default async function LandingPage() {
   const session = await getSession();
   const signupOpen = env.signupOpen;
+  const contact = { email: env.contact.email, whatsapp: env.contact.whatsapp, company: env.contact.company, cnpj: env.contact.cnpj };
   const primary = session
     ? { href: "/painel", label: "Abrir o painel" }
     : signupOpen
@@ -528,12 +535,26 @@ export default async function LandingPage() {
         <div className="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-8 text-sm text-zinc-500 md:flex-row md:items-center md:justify-between md:px-6">
           <div className="flex items-center gap-3">
             <Logo />
-            <span>© {new Date().getFullYear()}</span>
+            <span>
+              © {new Date().getFullYear()}
+              {contact.company ? ` ${contact.company}` : ""}
+              {contact.cnpj ? ` · CNPJ ${contact.cnpj}` : ""}
+            </span>
           </div>
           <p className="max-w-md text-xs">
             Projeto independente, não afiliado à Supabase Inc. &quot;Supabase&quot; é marca registrada da Supabase Inc.
           </p>
-          <div className="flex gap-4">
+          <div className="flex flex-wrap gap-x-4 gap-y-2">
+            {contact.email && (
+              <a href={`mailto:${contact.email}`} className="hover:text-zinc-900 dark:hover:text-white">
+                {contact.email}
+              </a>
+            )}
+            {contact.whatsapp && (
+              <a href={`https://wa.me/${contact.whatsapp}`} target="_blank" rel="noopener noreferrer" className="hover:text-zinc-900 dark:hover:text-white">
+                WhatsApp {formatPhone(contact.whatsapp)}
+              </a>
+            )}
             <a href={REPO} className="hover:text-zinc-900 dark:hover:text-white">GitHub</a>
             <Link href="/login" className="hover:text-zinc-900 dark:hover:text-white">Entrar</Link>
           </div>

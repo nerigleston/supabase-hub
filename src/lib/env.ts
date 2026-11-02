@@ -60,6 +60,25 @@ export const env = {
   get accessRequestUrl() {
     return process.env.ACCESS_REQUEST_URL || null;
   },
+  /**
+   * Contato público mostrado no rodapé da landing (exigido por meios de pagamento como a
+   * AbacatePay). Vazio = não mostra. WhatsApp só com dígitos, com DDI e DDD (ex.: 5583999999999).
+   */
+  contact: {
+    get email() {
+      return process.env.CONTACT_EMAIL?.trim() || null;
+    },
+    get whatsapp() {
+      const d = (process.env.CONTACT_WHATSAPP ?? "").replace(/\D/g, "");
+      return d.length >= 10 ? d : null;
+    },
+    get company() {
+      return process.env.COMPANY_NAME?.trim() || null;
+    },
+    get cnpj() {
+      return process.env.COMPANY_CNPJ?.trim() || null;
+    },
+  },
   /** Destino dos botões de upgrade: a página de plano, quando o servidor tem planos (FREE_ORG_LIMIT). */
   get upgradeUrl() {
     return process.env.FREE_ORG_LIMIT ? "/assinar" : null;
