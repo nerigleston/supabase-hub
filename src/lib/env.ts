@@ -38,6 +38,19 @@ export const env = {
   get mcpUrl() {
     return (process.env.MCP_URL ?? "https://app.mcp.jangada.dev.br/mcp").replace(/\/$/, "");
   },
+  /** MCP_URL só quando foi configurada de fato (vai como `aud` na introspecção). */
+  get mcpUrlConfigured() {
+    const v = process.env.MCP_URL?.trim();
+    return v ? v.replace(/\/$/, "") : null;
+  },
+  /**
+   * Segredo da introspecção do jangada Cloud (modo OAuth externo). Gerado no painel do
+   * jangada (Autenticação > OAuth externo). Ausente: /introspect responde 404 e o metadata
+   * não anuncia o introspection_endpoint.
+   */
+  get introspectionSecret() {
+    return process.env.JANGADA_INTROSPECTION_SECRET || null;
+  },
   cognito: {
     get userPoolId() {
       return required("COGNITO_USER_POOL_ID");

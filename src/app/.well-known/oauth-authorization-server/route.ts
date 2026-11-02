@@ -10,6 +10,8 @@ const cors = {
 // onde autorizar e trocar tokens.
 export function GET() {
   const base = env.appUrl;
+  // modo OAuth externo do jangada: só anuncia a introspecção quando o segredo existe
+  const introspection = env.introspectionSecret ? { introspection_endpoint: `${base}/introspect` } : {};
   return Response.json(
     {
       issuer: base,
@@ -21,6 +23,7 @@ export function GET() {
       code_challenge_methods_supported: ["S256"],
       token_endpoint_auth_methods_supported: ["none"],
       scopes_supported: ["mcp"],
+      ...introspection,
     },
     { headers: cors },
   );

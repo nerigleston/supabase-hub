@@ -18,7 +18,7 @@ import {
 } from "./db";
 import { env } from "./env";
 import { loadHub } from "./hub";
-import { hasMcp, orgUsage } from "./plans";
+import { hasMcp, orgUsage, type PlanId } from "./plans";
 import { schemaSnapshot } from "./describe";
 import { mcpForMember, ROLE_LABEL } from "./roles";
 import { getSharedWithMe, listSharedWithMe, type SharedWithMe } from "./shares";
@@ -103,12 +103,17 @@ export async function setMcpConfig(tenant: string, cfg: McpConfig) {
   await doc.send(new PutCommand({ TableName: env.table, Item: { pk: `T#${tenant}`, sk: "MCPCFG", globalTools, perDb } }));
 }
 
+/** Plano do tenant, se ele tem MCP e as ferramentas que pode usar AGORA (plano Business + config). */
+export async function mcpAccess(tenant: string): Promise<{ plan: PlanId; mcp: boolean; tools: McpTool[] }> {
+  const [plan, cfg] = await Promise.all([orgUsage(tenant).then((u) => u.plan), getMcpConfig(tenant)]);
+  if (!hasMcp(plan)) return { plan, mcp: false, tools: [] };
+  const union = new Set([...cfg.globalTools, ...Object.values(cfg.perDb).flat()]);
+  return { plan, mcp: true, tools: CATALOG.filter((t) => !t.permissionOnly && union.has(t.name)) };
+}
+
 /** Ferramentas que este tenant pode usar AGORA (plano Business + config). */
 export async function allowedTools(tenant: string): Promise<McpTool[]> {
-  const [plan, cfg] = await Promise.all([orgUsage(tenant).then((u) => u.plan), getMcpConfig(tenant)]);
-  if (!hasMcp(plan)) return [];
-  const union = new Set([...cfg.globalTools, ...Object.values(cfg.perDb).flat()]);
-  return CATALOG.filter((t) => !t.permissionOnly && union.has(t.name));
+  return (await mcpAccess(tenant)).tools;
 }
 
 export class McpError extends Error {
