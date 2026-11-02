@@ -1,8 +1,8 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { abacate, type BillingCycle, createCustomer, createSubscriptionCheckout } from "@/lib/abacatepay";
+import { abacate, type BillingCycle, createCustomer, createSubscriptionCheckout, type PaidPlan } from "@/lib/abacatepay";
 import { addLog } from "@/lib/db";
 import { env } from "@/lib/env";
-import { getBilling, getPlan, linkCustomer } from "@/lib/plans";
+import { getBilling, getPlan, linkCustomer, updateBilling } from "@/lib/plans";
 import { rateLimit } from "@/lib/ratelimit";
 import { getSession } from "@/lib/session";
 
@@ -17,10 +17,11 @@ export async function POST(request: NextRequest) {
 
   const form = await request.formData();
   const cycle: BillingCycle = form.get("ciclo") === "yearly" ? "yearly" : "monthly";
-  const productId = abacate.product(cycle);
+  const plan: PaidPlan = form.get("plano") === "business" ? "business" : "pro";
+  const productId = abacate.product(plan, cycle);
   if (!productId) return go("/assinar?erro=nao_configurado");
 
-  if ((await getPlan(session.tenantId)) === "pro") {
+  if ((await getPlan(session.tenantId)) !== "free") {
     const b = await getBilling(session.tenantId);
     if (b.subscriptionStatus === "ACTIVE") return go("/assinar?erro=ja_assinante");
   }
@@ -35,6 +36,7 @@ export async function POST(request: NextRequest) {
       customerId = (await createCustomer({ email: session.email, tenantId: session.tenantId })).id;
       await linkCustomer(session.tenantId, customerId);
     }
+    await updateBilling(session.tenantId, { pendingPlan: plan });
     const checkout = await createSubscriptionCheckout({
       productId,
       customerId,
@@ -43,7 +45,7 @@ export async function POST(request: NextRequest) {
       completionUrl: `${env.appUrl}/assinar?pago=1`,
     });
     url = checkout.url;
-    await addLog(session.tenantId, { user: session.email, action: "checkout_iniciado", target: cycle === "yearly" ? "Pro anual" : "Pro mensal", ok: true });
+    await addLog(session.tenantId, { user: session.email, action: "checkout_iniciado", target: `${plan === "business" ? "Business" : "Pro"} ${cycle === "yearly" ? "anual" : "mensal"}`, ok: true });
   } catch (err) {
     console.error("checkout abacatepay", err);
     await addLog(session.tenantId, { user: session.email, action: "checkout_iniciado", target: cycle, ok: false, detail: String(err) });

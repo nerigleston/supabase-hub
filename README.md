@@ -180,6 +180,9 @@ npm run build && npm start
 | `CRON_SECRET`                  | ✅ (prod)   | Token exigido em `Authorization: Bearer` pela rota de keep-alive          |
 | `SIGNUP_ENABLED`               |             | `true` abre o cadastro público. **Fechado por padrão**: abra para criar a sua conta e feche depois, se quiser |
 | `ACCESS_REQUEST_URL`           |             | Com o cadastro fechado, destino do botão "Quero ser avisado" (`mailto:` ou URL) |
+| `CONTACT_EMAIL`                |             | E-mail de contato no rodapé da landing (meios de pagamento como a AbacatePay exigem) |
+| `CONTACT_WHATSAPP`             |             | WhatsApp no rodapé, só dígitos com DDI e DDD (ex.: `5583999999999`); vira link `wa.me` |
+| `COMPANY_NAME` / `COMPANY_CNPJ` |            | Razão social e CNPJ no rodapé (opcionais, ajudam na aprovação do meio de pagamento) |
 | `MCP_URL`                      |             | URL pública do servidor MCP mostrada na tela /mcp e na LP                  |
 
 #### E-mails pelo Resend: convites, confirmação de cadastro e troca de senha
@@ -223,8 +226,9 @@ Sem `FREE_ORG_LIMIT` não existe plano nem limite: todo usuário conecta quantas
 | `PAYMENTS_ENABLED`             | `true` libera as assinaturas. Sem isso os planos pagos aparecem como "Em breve" |
 | `ABACATEPAY_API_KEY`           | Chave da API do [AbacatePay](https://abacatepay.com) (define sandbox ou produção) |
 | `ABACATEPAY_WEBHOOK_SECRET`    | Segredo do webhook, o mesmo cadastrado no AbacatePay                      |
-| `ABACATEPAY_PRODUCT_MONTHLY`   | ID do produto com ciclo `MONTHLY` (`prod_...`)                            |
-| `ABACATEPAY_PRODUCT_YEARLY`    | ID do produto com ciclo `ANNUALLY` (opcional)                             |
+| `ABACATEPAY_PRODUCT_MONTHLY`   | Produto do Pro mensal (`prod_...`)                                        |
+| `ABACATEPAY_PRODUCT_YEARLY`    | Produto do Pro anual (opcional)                                           |
+| `ABACATEPAY_PRODUCT_BUSINESS_MONTHLY` / `ABACATEPAY_PRODUCT_BUSINESS_YEARLY` | Produtos do Business (mensal e anual). A AbacatePay salva um período por produto; sem eles o Business aparece como "Em breve" |
 | `ABACATEPAY_ACCEPT_DEV`        | `true` aceita eventos de sandbox (`devMode`). Nunca use em produção       |
 
 No AbacatePay, crie os produtos de assinatura e um webhook apontando para `<APP_URL>/api/webhooks/abacatepay?webhookSecret=<ABACATEPAY_WEBHOOK_SECRET>` com os eventos `subscription.completed`, `subscription.renewed`, `subscription.cancelled` e `subscription.payment_failed`. Os preços exibidos ficam em `src/lib/plans.ts`.
