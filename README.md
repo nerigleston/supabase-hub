@@ -34,6 +34,7 @@ Painel para gerenciar **várias contas e organizações do Supabase em um lugar 
 - **Limite do plano Free**: o Supabase permite 2 bancos grátis ligados **por pessoa (e-mail)**, somando todas as organizações em que ela é dona ou admin, e confere todos os donos e admins da organização antes de criar. O painel faz a mesma conta (com as organizações conectadas), mostra quem está bloqueando e escolhe automaticamente onde criar o próximo.
 - **Criar, pausar, reativar e excluir** projetos.
 - **Editor SQL** e **navegador de tabelas**.
+- **Diagrama do banco** (aba Diagrama): tabelas com colunas, tipos, chave primária e estrangeira, e as ligações entre elas (N:1 ou 1:1), organizadas sozinhas como num modelo lógico. Escolha o schema; tabelas de outros schemas referenciadas (ex.: `auth.users`) aparecem tracejadas. Passar o mouse numa tabela destaca as ligações dela. Só SQL de leitura.
 - **Conectar**: connection strings (pooler transaction/session e direta) e snippets prontos por aba: `.env`, psql, Node (pg), Prisma, Drizzle, Python, Go, JDBC, .NET, PHP e supabase-js.
 - **Manter ativo (keep-alive)**: um `select 1` por dia nos projetos marcados, para o Supabase não pausar por inatividade.
 - **Descrição de cada banco**: escrita à mão ou gerada por IA a partir do esquema (opcionalmente com 2 linhas de exemplo por tabela, colunas sensíveis ocultas). O usuário revisa antes de salvar, e o painel avisa quando tabelas ou colunas mudam. O MCP usa a descrição para saber qual banco é qual.
