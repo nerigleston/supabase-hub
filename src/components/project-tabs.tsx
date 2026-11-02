@@ -8,6 +8,7 @@ export function ProjectTabs({ base, canManage = false }: { base: string; canMana
   const tabs = [
     { href: base, label: "Conexão" },
     { href: `${base}/tabelas`, label: "Tabelas" },
+    { href: `${base}/diagrama`, label: "Diagrama" },
     { href: `${base}/sql`, label: "SQL" },
     // quem tem acesso e convites: só dono e Admin
     ...(canManage ? [{ href: `${base}/acesso`, label: "Acesso" }] : []),
