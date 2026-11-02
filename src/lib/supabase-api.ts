@@ -183,7 +183,7 @@ function friendlyError(status: number, message: string) {
     case 401:
       return "Acesso expirado ou revogado. Reconecte esta conta em Contas.";
     case 403:
-      return `Sem permissão para esta ação. Confira os scopes do OAuth App (Projects: leitura e escrita). ${message}`;
+      return `Sem permissão para esta ação. Token com escopo (sbp_fc...): gere outro com acesso a todas as organizações e "Full access", ou um "legacy token". OAuth: confira os scopes do OAuth App (Projects: leitura e escrita). ${message}`;
     case 429:
       return "Limite de requisições do Supabase atingido. Aguarde um minuto e tente de novo.";
     default:
@@ -271,6 +271,40 @@ export type Profile = { gotrue_id: string; primary_email: string; username?: str
 /** Só funciona com Access Token (PAT); o OAuth ainda não tem acesso a /v1/profile. */
 export async function getProfileWithToken(accessToken: string) {
   return call<Profile>(accessToken, "GET", "/v1/profile");
+}
+
+/**
+ * E-mail do dono do token. Token "legacy" responde /v1/profile; token com escopo
+ * (sbp_fc..., padrão do dashboard desde out/2026) não tem acesso a ele. Aí o dono é
+ * quem aparece como membro em TODAS as organizações do token (com a dica do usuário,
+ * se houver mais de um candidato).
+ */
+export async function resolveTokenEmail(accessToken: string, hint?: string): Promise<string> {
+  try {
+    return (await getProfileWithToken(accessToken)).primary_email.toLowerCase();
+  } catch (err) {
+    if (!(err instanceof SupabaseApiError) || err.status !== 403) throw err;
+  }
+  const h = hint?.trim().toLowerCase() || "";
+  const orgs = await listOrganizationsWithToken(accessToken).catch((err) => {
+    throw err instanceof SupabaseApiError && err.status === 403
+      ? new Error('Esse token com escopo não pode listar organizações. Gere outro marcando todas as organizações e o preset "Full access" (ou crie um "legacy token").')
+      : err;
+  });
+  if (!orgs.length) throw new Error("Esse token não tem acesso a nenhuma organização. Ao gerar, marque as organizações que o BaseHub deve ver.");
+  const lists = await Promise.all(
+    orgs.map((o) =>
+      listMembersWithToken(accessToken, o.slug ?? o.id)
+        .then((ms) => ms.map((m) => m.email?.toLowerCase()).filter((e): e is string => Boolean(e)))
+        .catch(() => null),
+    ),
+  );
+  const known = lists.filter((l): l is string[] => l !== null);
+  const common = known.length ? known.reduce((acc, l) => acc.filter((e) => l.includes(e))) : [];
+  if (h && (common.includes(h) || (!known.length && h))) return h;
+  if (!h && common.length === 1) return common[0];
+  if (h) throw new Error(`${h} não aparece como membro das organizações desse token. Confira o e-mail da conta Supabase que gerou o token.`);
+  throw new Error("Token com escopo (sbp_fc...): o Supabase não informa o e-mail da conta. Preencha o campo \"E-mail da conta Supabase\" e tente de novo.");
 }
 
 /** Marca conexões como OAuth ou PAT sem expor o refresh a quem não precisa. */

@@ -129,8 +129,10 @@ function TokenForm({ onDone }: { onDone: () => void }) {
           <div className="flex-1">
             <p className="font-medium">Gere um token</p>
             <p className="mt-1 text-zinc-500">
-              <em>Generate new token</em>, nome <strong>BaseHub</strong>. Escolher uma expiração é mais seguro; quando vencer, o Hub avisa para
-              colar um novo.
+              <em>Generate new token</em>, nome <strong>BaseHub</strong>. O Supabase agora cria tokens com escopo: marque{" "}
+              <strong>todas as organizações</strong> que o BaseHub deve ver e o preset <strong>Full access</strong> (ou use{" "}
+              <em>Create legacy token</em>, com acesso à conta inteira). Escolher uma expiração é mais seguro; quando vencer, o Hub avisa
+              para colar um novo.
             </p>
           </div>
         </li>
@@ -157,8 +159,21 @@ function TokenForm({ onDone }: { onDone: () => void }) {
                 {shown ? "Ocultar" : "Mostrar"}
               </button>
             </div>
+            <label htmlFor="pat-email" className="mt-3 block font-medium">
+              E-mail da conta Supabase <span className="font-normal text-zinc-500">(só se o token começar com sbp_fc)</span>
+            </label>
+            <input
+              id="pat-email"
+              name="email"
+              type="email"
+              autoComplete="off"
+              spellCheck={false}
+              placeholder="voce@exemplo.com"
+              className={`${inputClass} mt-2`}
+            />
             <p className="mt-1 text-xs text-zinc-500">
-              O e-mail da conta é identificado pelo próprio token. Ele fica criptografado (AES-256-GCM). Colar o token de um login já
+              O e-mail da conta é identificado pelo próprio token (no token com escopo, conferimos o que você informar com os membros das
+              organizações). Ele fica criptografado (AES-256-GCM). Colar o token de um login já
               conectado só atualiza o token.
             </p>
           </div>
