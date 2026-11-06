@@ -1,5 +1,6 @@
 import { Check } from "lucide-react";
 import type { Metadata } from "next";
+import Link from "next/link";
 import { cancelSubscriptionAction } from "@/app/actions";
 import { buttonClass, Card, Notice, PageHeader } from "@/components/app-ui";
 import { ConfirmAction } from "@/components/confirm-action";
@@ -140,7 +141,12 @@ export default async function AssinarPage({ searchParams }: PageProps<"/assinar"
             Por enquanto todas as contas usam o Grátis, com até {usage.limit ?? 2} organizações. Quando o pagamento abrir, é só voltar aqui e assinar.
           </Notice>
         )}
-        <p className="text-xs text-zinc-500">Pagamento processado pelo AbacatePay. O BaseHub não vê nem guarda dados do seu cartão.</p>
+        <p className="text-xs text-zinc-500">
+          Assinatura recorrente, renovada até você cancelar. Desistiu em até 7 dias do primeiro pagamento? Devolvemos tudo.
+          Veja a <Link href="/reembolso" className="underline hover:text-zinc-900 dark:hover:text-white">política de cancelamento e reembolso</Link> e
+          os <Link href="/termos" className="underline hover:text-zinc-900 dark:hover:text-white">Termos de Uso</Link>.
+          Pagamento processado pelo AbacatePay. O BaseHub não vê nem guarda dados do seu cartão.
+        </p>
       </div>
     </>
   );
