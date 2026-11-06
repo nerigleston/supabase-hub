@@ -17,6 +17,7 @@ Next.js 16 (App Router, `src/proxy.ts` no lugar de middleware), React 19, Tailwi
 | `src/app/(painel)/` | Telas logadas: `painel` (visão geral), `novo`, `contas` e `contas/[org]` (página da organização), `p/[org]/[ref]` (projeto: Conexão, Tabelas, SQL), `mcp`, `atividade`, `assinar`, `ajuda` |
 | `src/app/(auth)/` | Login, cadastro, esqueci a senha (Cognito) |
 | `src/app/page.tsx` | Landing page (rodapé com contato e CNPJ via `CONTACT_*`/`COMPANY_*`, exigido pela AbacatePay) |
+| `src/app/termos`, `src/app/reembolso` + `src/components/legal-page.tsx` | Termos de Uso e Política de Cancelamento e Reembolso (públicas; exigidas pela AbacatePay). Preços vêm de `PRICING`; mudou cobrança, cancelamento ou dados guardados, revise esses textos |
 | `src/components/schema-diagram.tsx` | Aba Diagrama do banco: React Flow (`@xyflow/react`) + layout `@dagrejs/dagre`; dados vêm de SQL de leitura em `p/[org]/[ref]/diagrama/page.tsx`. A roda do mouse rola a página (zoom só com Ctrl/⌘); o enquadramento roda depois de medir as tabelas (`useNodesInitialized`) |
 | `src/app/actions.ts` | Server actions (todas checam sessão, várias têm rate limit e gravam `addLog`) |
 | `src/lib/hub.ts` | `loadHub`: lê todas as contas em paralelo e calcula as vagas grátis **por e-mail** |

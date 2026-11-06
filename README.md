@@ -235,7 +235,7 @@ Sem `FREE_ORG_LIMIT` não existe plano nem limite: todo usuário conecta quantas
 | `ABACATEPAY_PRODUCT_BUSINESS_MONTHLY` / `ABACATEPAY_PRODUCT_BUSINESS_YEARLY` | Produtos do Business (mensal e anual). A AbacatePay salva um período por produto; sem eles o Business aparece como "Em breve" |
 | `ABACATEPAY_ACCEPT_DEV`        | `true` aceita eventos de sandbox (`devMode`). Nunca use em produção       |
 
-No AbacatePay, crie os produtos de assinatura e um webhook apontando para `<APP_URL>/api/webhooks/abacatepay?webhookSecret=<ABACATEPAY_WEBHOOK_SECRET>` com os eventos `subscription.completed`, `subscription.renewed`, `subscription.cancelled` e `subscription.payment_failed`. Os preços exibidos ficam em `src/lib/plans.ts`.
+No AbacatePay, crie os produtos de assinatura e um webhook apontando para `<APP_URL>/api/webhooks/abacatepay?webhookSecret=<ABACATEPAY_WEBHOOK_SECRET>` com os eventos `subscription.completed`, `subscription.renewed`, `subscription.cancelled` e `subscription.payment_failed`. Os preços exibidos ficam em `src/lib/plans.ts`. As páginas públicas `/termos` e `/reembolso` (Termos de Uso e Política de Cancelamento e Reembolso, com o arrependimento de 7 dias do CDC) usam esses preços e os contatos `CONTACT_*`/`COMPANY_*`; revise o texto antes de oferecer o serviço com a sua empresa.
 
 ---
 

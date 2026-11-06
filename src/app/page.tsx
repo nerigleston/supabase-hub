@@ -555,6 +555,8 @@ export default async function LandingPage() {
                 WhatsApp {formatPhone(contact.whatsapp)}
               </a>
             )}
+            <Link href="/termos" className="hover:text-zinc-900 dark:hover:text-white">Termos</Link>
+            <Link href="/reembolso" className="hover:text-zinc-900 dark:hover:text-white">Cancelamento e reembolso</Link>
             <a href={REPO} className="hover:text-zinc-900 dark:hover:text-white">GitHub</a>
             <Link href="/login" className="hover:text-zinc-900 dark:hover:text-white">Entrar</Link>
           </div>
