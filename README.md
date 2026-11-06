@@ -185,6 +185,7 @@ npm run build && npm start
 | `CONTACT_WHATSAPP`             |             | WhatsApp no rodapé, só dígitos com DDI e DDD (ex.: `5583999999999`); vira link `wa.me` |
 | `COMPANY_NAME` / `COMPANY_CNPJ` |            | Razão social e CNPJ no rodapé (opcionais, ajudam na aprovação do meio de pagamento) |
 | `MCP_URL`                      |             | URL pública do servidor MCP mostrada na tela /mcp e na LP                  |
+| `JANGADA_INTROSPECTION_SECRET` |            | Liga o `POST /introspect` do modo OAuth externo do jangada Cloud (segredo gerado no painel do jangada) |
 
 #### E-mails pelo Resend: convites, confirmação de cadastro e troca de senha
 
@@ -216,6 +217,8 @@ Controle de custo já embutido: o guia do chat vai em cache (prompt caching), 30
 #### MCP (opcional)
 
 O servidor MCP fica em outro repositório (`basehub-mcp`, Python + jangada-ai). Ele só repassa as chamadas para o BaseHub, que é o servidor OAuth (`/.well-known/oauth-authorization-server`, `/oauth/register`, `/oauth/authorize`, `/oauth/token`) e quem executa as ações (`/api/mcp/tools`, `/api/mcp/call`). No servidor MCP, defina `BASEHUB_URL` e `MCP_PUBLIC_URL`; no BaseHub, `MCP_URL`. O acesso exige o plano Business quando os planos estão ligados.
+
+Modo "OAuth externo" do jangada Cloud (opcional): com `JANGADA_INTROSPECTION_SECRET` definido, o metadata do OAuth passa a anunciar `introspection_endpoint` e o `POST /introspect` (RFC 7662) responde ao gateway do jangada, que valida o token no lugar do servidor MCP. Sem a variável, a rota responde 404 e nada muda.
 
 #### Planos e pagamento (opcional, para quem oferece como SaaS)
 

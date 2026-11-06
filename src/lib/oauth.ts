@@ -8,8 +8,9 @@ import { env } from "./env";
 // Authorization Server OAuth 2.1 (PKCE) para o MCP. Guardado em DynamoDB:
 //   pk=OAUTHCLIENT#<id>   sk=META   { redirectUris, name, createdAt }
 //   pk=OAUTHCODE#<code>   sk=META   { ...code, ttl }      (5 min)
-//   pk=OAUTHTOK#<hash>    sk=META   { tenantId, email, scope, ttl }   (1 h)
-//   pk=OAUTHREF#<hash>    sk=META   { tenantId, email, scope, ttl }   (30 d)
+//   pk=OAUTHTOK#<hash>    sk=META   { tenantId, email, scope, clientId?, ttl }   (1 h)
+//   pk=OAUTHREF#<hash>    sk=META   { tenantId, email, scope, clientId?, ttl }   (30 d)
+// clientId só existe nos tokens emitidos depois da introspecção (tokens antigos não têm).
 // Tokens são opacos: guardamos só o sha256, então dá para revogar e nada vaza.
 
 const doc = DynamoDBDocumentClient.from(new DynamoDBClient(awsClientConfig()), {
@@ -83,20 +84,20 @@ export async function consumeAuthCode(
 
 export type TokenSet = { access_token: string; refresh_token: string; expires_in: number; token_type: "Bearer"; scope: string };
 
-export async function issueTokens(tenantId: string, email: string, scope: string): Promise<TokenSet> {
+export async function issueTokens(tenantId: string, email: string, scope: string, clientId?: string): Promise<TokenSet> {
   const access = rand(32);
   const refresh = rand(32);
   await Promise.all([
     doc.send(
       new PutCommand({
         TableName: env.table,
-        Item: { pk: `OAUTHTOK#${sha(access)}`, sk: "META", tenantId, email, scope, ttl: nowSec() + ACCESS_TTL },
+        Item: { pk: `OAUTHTOK#${sha(access)}`, sk: "META", tenantId, email, scope, clientId, ttl: nowSec() + ACCESS_TTL },
       }),
     ),
     doc.send(
       new PutCommand({
         TableName: env.table,
-        Item: { pk: `OAUTHREF#${sha(refresh)}`, sk: "META", tenantId, email, scope, ttl: nowSec() + REFRESH_TTL },
+        Item: { pk: `OAUTHREF#${sha(refresh)}`, sk: "META", tenantId, email, scope, clientId, ttl: nowSec() + REFRESH_TTL },
       }),
     ),
   ]);
@@ -111,11 +112,21 @@ export async function validateAccessToken(token: string): Promise<{ tenantId: st
   return { tenantId: item.tenantId, email: item.email, scope: item.scope };
 }
 
+export type AccessTokenInfo = { tenantId: string; email: string; scope: string; exp: number; clientId?: string };
+
+/** Igual ao validateAccessToken, mas devolve também exp e client_id (usado pelo /introspect). */
+export async function inspectAccessToken(token: string): Promise<AccessTokenInfo | null> {
+  const out = await doc.send(new GetCommand({ TableName: env.table, Key: { pk: `OAUTHTOK#${sha(token)}`, sk: "META" } }));
+  const item = out.Item as { tenantId: string; email: string; scope: string; ttl: number; clientId?: string } | undefined;
+  if (!item || item.ttl < nowSec()) return null;
+  return { tenantId: item.tenantId, email: item.email, scope: item.scope, exp: item.ttl, clientId: item.clientId };
+}
+
 export async function refreshTokens(refreshToken: string): Promise<TokenSet | null> {
   const key = { pk: `OAUTHREF#${sha(refreshToken)}`, sk: "META" };
   const out = await doc.send(new GetCommand({ TableName: env.table, Key: key }));
-  const item = out.Item as { tenantId: string; email: string; scope: string; ttl: number } | undefined;
+  const item = out.Item as { tenantId: string; email: string; scope: string; ttl: number; clientId?: string } | undefined;
   if (!item || item.ttl < nowSec()) return null;
   await doc.send(new DeleteCommand({ TableName: env.table, Key: key })); // rotaciona
-  return issueTokens(item.tenantId, item.email, item.scope);
+  return issueTokens(item.tenantId, item.email, item.scope, item.clientId);
 }

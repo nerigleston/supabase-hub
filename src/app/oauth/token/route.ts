@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
     if (!code || !verifier || !clientId || !redirectUri) return err("invalid_request");
     const claims = await consumeAuthCode(code, verifier, clientId, redirectUri);
     if (!claims) return err("invalid_grant");
-    return Response.json(await issueTokens(claims.tenantId, claims.email, claims.scope), { headers: cors });
+    return Response.json(await issueTokens(claims.tenantId, claims.email, claims.scope, clientId), { headers: cors });
   }
 
   if (grant === "refresh_token") {

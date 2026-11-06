@@ -26,6 +26,7 @@ Next.js 16 (App Router, `src/proxy.ts` no lugar de middleware), React 19, Tailwi
 | `src/lib/mcp.ts` | Catálogo de ações do MCP, permissões (padrão + por banco), `executeTool`, `resolveProject` (confere o banco ao vivo) |
 | `src/lib/oauth.ts` + `src/app/oauth/*` + `src/app/.well-known/*` | Servidor OAuth 2.1 do MCP (PKCE, registro dinâmico) |
 | `src/app/api/mcp/{tools,call}` | Endpoints que o servidor MCP (repo `basehub-mcp`) chama |
+| `src/app/introspect` + `src/lib/introspection.ts` | Introspecção RFC 7662 para o gateway do jangada (modo OAuth externo) |
 | `src/lib/describe.ts` | Descrição dos bancos: leitura do esquema, impressão digital, rascunho por IA |
 | `src/app/api/assistant` + `src/components/assistant-chat.tsx` | Minichat de ajuda (streaming) |
 | `src/lib/assistant-knowledge.ts` | Guia do sistema usado pelo minichat (vai em prompt caching) |
@@ -50,6 +51,16 @@ Next.js 16 (App Router, `src/proxy.ts` no lugar de middleware), React 19, Tailwi
 - **Toda ação ou tela de um banco passa por `requireAccess`/`resolveAccess`** com a permissão mínima (`view`, `write`, `secrets`, `manage`, `delete`). Nunca use `session.tenantId` direto para dados de um banco: use `access.tenant` (o dono). Logs vão para o dono com `actor(access)`.
 - **O Cognito não envia e-mail**: cadastro e troca de senha usam `lib/email-codes` + `adminConfirm`/`adminSetPassword`. Não volte a usar `ForgotPassword`/`ResendConfirmationCode` do Cognito.
 - **Compartilhar é Pro/Business** (plano do DONO) e só para quem já tem conta no BaseHub. O MCP do convidado vê o banco compartilhado, limitado pelo que o dono/Admin liberou para aquela pessoa (dentro do teto do papel).
+
+## OAuth externo do jangada
+
+Contrato em `lib-ai/CONTRATO-oauth-externo.md` (v1). Desligado sem `JANGADA_INTROSPECTION_SECRET`.
+
+- Com a variável: o metadata (`/.well-known/oauth-authorization-server`) ganha `introspection_endpoint: <APP_URL>/introspect`.
+- `POST /introspect` com `Authorization: Basic base64("jangada:<segredo>")` e `token=<access token>` (form). Auth errada: 401 sem detalhes. Token inválido, expirado ou revogado: `{"active": false}`. Sem a variável: 404.
+- Token válido: `active`, `sub` (tenant), `email`, `exp`, `scope`, `token_type`, `client_id` (só tokens emitidos depois desta mudança), `aud` (só se `MCP_URL` estiver definida) e `jangada_claims = { v: 1, tenant_id, plan, mcp, tools: [nomes] }`. Plano e config do MCP são reconferidos a cada chamada (`mcpAccess`, a mesma base do `/api/mcp/tools`).
+- Nunca ponha tokens do Supabase nos claims: o MCP continua executando via `/api/mcp/call` com o Bearer, que o gateway repassa intacto.
+- Testes: `npm test` (`node --test`, funções puras de `src/lib/introspection.ts`).
 
 ## Convenções
 
